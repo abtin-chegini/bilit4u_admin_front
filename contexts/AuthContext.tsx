@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import axios from 'axios'
+import { API_BASE_URL } from '@/lib/config'
+import { apiClient } from '@/lib/api'
 
 interface AuthContextType {
 	user: User | null
@@ -11,7 +12,7 @@ interface AuthContextType {
 	loading: boolean
 	signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
 	signOut: () => Promise<void>
-	validateTokenWithBackend: (token: string) => Promise<boolean>
+	validateTokenWithBackend: (token: string) => Promise<{ isValid: boolean; shouldRefresh: boolean; shouldLogout: boolean }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -26,27 +27,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		try {
 			console.log('🔍 [TOKEN VALIDATION] Starting token validation...')
 			console.log('🔍 [TOKEN VALIDATION] JWT Token from login response:', token.substring(0, 20) + '...')
-			console.log('🔍 [TOKEN VALIDATION] API Endpoint: http://localhost:5001/adminauth/api/v1/admin/validateToken')
+			console.log('🔍 [TOKEN VALIDATION] API Endpoint: ' + API_BASE_URL + 'admin/validateToken')
 			console.log('🔍 [TOKEN VALIDATION] Request Body: { "token": "' + token.substring(0, 20) + '..." }')
 			console.log('🔍 [TOKEN VALIDATION] Timestamp:', new Date().toISOString())
 
-			const response = await axios.post(
-				'http://localhost:5001/adminauth/api/v1/admin/validateToken',
+			const response = await apiClient.post(
+				'admin/validateToken',
 				{
 					token: token
-				},
-				{
-					headers: {
-						'Content-Type': 'application/json'
-					}
 				}
 			)
 
-			console.log('✅ [TOKEN VALIDATION] Success! Status:', response.status)
-			console.log('✅ [TOKEN VALIDATION] Response:', response.data)
+			console.log('✅ [TOKEN VALIDATION] Success! Response:', response)
 
 			// Extract validation response data
-			const validationData = response.data
+			const validationData = response as any
 			const { success, tokenExpired, refreshTokenExpired } = validationData
 
 			// Store validation data in localStorage
@@ -80,12 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				console.log('⚠️ [TOKEN VALIDATION] Unexpected validation state')
 				return { isValid: false, shouldRefresh: false, shouldLogout: true }
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error('❌ [TOKEN VALIDATION] Failed:', error)
 			console.error('❌ [TOKEN VALIDATION] Error details:', {
 				message: error.message,
-				status: error.response?.status,
-				data: error.response?.data
+				status: error.status,
+				data: error.data
 			})
 			return { isValid: false, shouldRefresh: false, shouldLogout: true }
 		}
@@ -96,31 +91,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		try {
 			console.log('🔄 [BACKEND REFRESH] Starting backend token refresh...')
 			console.log('🔄 [BACKEND REFRESH] Refresh token:', refreshToken.substring(0, 20) + '...')
-			console.log('🔄 [BACKEND REFRESH] API Endpoint: http://localhost:5001/admin/refreshToken')
+			console.log('🔄 [BACKEND REFRESH] API Endpoint: ' + API_BASE_URL + 'admin/refreshToken')
 			console.log('🔄 [BACKEND REFRESH] Timestamp:', new Date().toISOString())
 
-			const response = await axios.post(
-				'http://localhost:5001/admin/refreshToken',
+			const response = await apiClient.post(
+				'admin/refreshToken',
 				{
 					refreshToken: refreshToken
-				},
-				{
-					headers: {
-						'Content-Type': 'application/json'
-					}
 				}
 			)
 
-			console.log('✅ [BACKEND REFRESH] Success! Status:', response.status)
-			console.log('✅ [BACKEND REFRESH] Response:', response.data)
+			console.log('✅ [BACKEND REFRESH] Success! Response:', response)
 
-			return response.data
-		} catch (error) {
+			return response as any
+		} catch (error: any) {
 			console.error('❌ [BACKEND REFRESH] Failed:', error)
 			console.error('❌ [BACKEND REFRESH] Error details:', {
 				message: error.message,
-				status: error.response?.status,
-				data: error.response?.data
+				status: error.status,
+				data: error.data
 			})
 			return null
 		}
@@ -140,27 +129,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 			// Use your backend to refresh the token
 			console.log('🔄 [TOKEN REFRESH] Calling backend refresh endpoint...')
-			const refreshData = await refreshTokenWithBackend(session.refresh_token)
+			const refreshData = await refreshTokenWithBackend(session?.refresh_token || '')
 			console.log('🔄 [TOKEN REFRESH] Backend refresh response:', refreshData)
-			console.log('🔄 [TOKEN REFRESH] Backend refresh access_token:', refreshData.newToken
-				
-			)
-			if (!refreshData || !refreshData.newToken) {
+			console.log('🔄 [TOKEN REFRESH] Backend refresh access_token:', refreshData?.access_token)
+
+			if (!refreshData || !refreshData.access_token) {
 				console.error('❌ [TOKEN REFRESH] Backend refresh failed or no new token received')
 				return false
 			}
 
 			console.log('✅ [TOKEN REFRESH] Backend refresh successful!')
-			console.log('✅ [TOKEN REFRESH] New access token:', refreshData.newToken.substring(0, 20) + '...')
-			console.log('✅ [TOKEN REFRESH] New refresh token:', refreshData.refreshToken?.substring(0, 20) + '...')
+			console.log('✅ [TOKEN REFRESH] New access token:', refreshData.access_token.substring(0, 20) + '...')
+			console.log('✅ [TOKEN REFRESH] New refresh token:', refreshData.refresh_token?.substring(0, 20) + '...')
 
 			// Create updated session with new tokens
 			const updatedSession = {
 				...session,
-				access_token: refreshData.newToken,
-				refresh_token: refreshData.refreshToken || session.refreshToken,
+				access_token: refreshData.access_token,
+				refresh_token: refreshData.refresh_token || session?.refresh_token,
 				expires_at: Math.floor(Date.now() / 1000) + 360, // 6 minutes from now
-			}
+			} as Session
 
 			// Update session with new tokens
 			setSession(updatedSession)
@@ -171,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 			// Validate new token with backend
 			console.log('🔍 [TOKEN REFRESH] Validating new token with backend...')
-			const validationResult = await validateTokenWithBackend(refreshData.newToken)
+			const validationResult = await validateTokenWithBackend(refreshData.access_token)
 			if (!validationResult.isValid) {
 				console.log('❌ [TOKEN REFRESH] Refreshed token validation failed - signing out')
 				signOut()
@@ -191,23 +179,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		try {
 			console.log('🔐 [LOGIN] Starting login process...')
 			console.log('🔐 [LOGIN] Email:', email)
-			console.log('🔐 [LOGIN] Backend API: http://localhost:5001/adminauth/api/v1/password/login')
+			console.log('🔐 [LOGIN] Backend API: ' + API_BASE_URL + 'password/login')
 			console.log('🔐 [LOGIN] Timestamp:', new Date().toISOString())
 
 			// First, authenticate with your backend API
-			const response = await axios.post('http://localhost:5001/adminauth/api/v1/password/login', {
+			const response = await apiClient.post('password/login', {
 				email,
 				password
 			})
 
 			console.log('✅ [LOGIN] Backend response received!')
-			console.log('✅ [LOGIN] Status:', response.status)
 			console.log('🔍 [LOGIN] ===== FULL LOGIN RESPONSE =====')
-			console.log('🔍 [LOGIN] Complete response.data:', JSON.stringify(response.data, null, 2))
+			console.log('🔍 [LOGIN] Complete response:', JSON.stringify(response, null, 2))
 			console.log('🔍 [LOGIN] ================================')
 
 			// Log the JWT token fields from backend response
-			const backendData = response.data
+			const backendData = response as any
 			console.log('🔍 [LOGIN] Looking for JWT token in backend response...')
 			console.log('🔍 [LOGIN] backendData.access_token:', backendData.access_token ? backendData.access_token.substring(0, 20) + '...' : 'NOT FOUND')
 			console.log('🔍 [LOGIN] backendData.token:', backendData.token ? backendData.token.substring(0, 20) + '...' : 'NOT FOUND')
@@ -227,13 +214,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			})
 			console.log('🔍 [LOGIN] ==============================================')
 
-			if (response.status === 200) {
+			if (response) {
 				// If backend authentication succeeds, create a session manually
-				const backendData = response.data
+				const backendData = response
 
 				// Create a mock user object
 				const mockUser = {
-					id: backendData.user_id || '1',
+					id: (backendData as any).user_id || '1',
 					email: email,
 					user_metadata: {},
 					app_metadata: {},
@@ -242,14 +229,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				} as User
 
 				// Find the JWT token from various possible field names
-				const jwtToken = backendData.token;
+				const jwtToken = (backendData as any).token;
 
 				console.log('🔍 [LOGIN] Selected JWT token field:', jwtToken ? jwtToken.substring(0, 20) + '...' : 'NOT FOUND')
 
 				// Create a mock session with the actual JWT token from login response
 				const mockSession = {
 					access_token: jwtToken,
-					refresh_token: backendData.refreshToken,
+					refresh_token: (backendData as any).refresh_token || (backendData as any).refreshToken,
 					expires_in: 360, // 6 minutes
 					expires_at: Math.floor(Date.now() / 1000) + 360,
 					token_type: 'bearer',
@@ -267,7 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				console.log('👤 [LOGIN] Created user object:', mockUser)
 				console.log('🎫 [LOGIN] Created session with access token:', mockSession.access_token ? mockSession.access_token.substring(0, 20) + '...' : 'NOT FOUND')
 				console.log('🎫 [LOGIN] Created session with refresh token:', mockSession.refresh_token ? mockSession.refresh_token.substring(0, 20) + '...' : 'NOT FOUND')
-				console.log('🎫 [LOGIN] Session expires at:', new Date(mockSession.expires_at * 1000).toISOString())
+				console.log('🎫 [LOGIN] Session expires at:', new Date((mockSession.expires_at || 0) * 1000).toISOString())
 
 				// Set the session manually
 				setSession(mockSession)
@@ -279,20 +266,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 				console.log('✅ [LOGIN] Login successful! User will be redirected to dashboard.')
 				return { error: null }
-			} else {
-				console.log('❌ [LOGIN] Backend returned non-200 status:', response.status)
-				return { error: { message: 'Authentication failed' } as AuthError }
 			}
+
+			// If we reach here, something went wrong
+			return { error: { message: 'Authentication failed' } as AuthError }
 		} catch (error: any) {
 			console.error('❌ [LOGIN] Login failed:', error)
 			console.error('❌ [LOGIN] Error details:', {
 				message: error.message,
-				status: error.response?.status,
-				data: error.response?.data
+				status: error.status,
+				data: error.data
 			})
 			return {
 				error: {
-					message: error.response?.data?.message || 'خطا در ورود. لطفا مجددا تلاش کنید.'
+					message: error.data?.message || error.message || 'خطا در ورود. لطفا مجددا تلاش کنید.'
 				} as AuthError
 			}
 		}
