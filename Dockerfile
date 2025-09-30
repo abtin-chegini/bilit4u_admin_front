@@ -29,7 +29,12 @@ COPY . .
 # Uncomment the following line in case you want to disable telemetry during the build.
 ENV NEXT_TELEMETRY_DISABLED 1
 
-RUN yarn build 
+# Build the application
+RUN yarn build
+
+# Verify that standalone output was generated
+RUN ls -la /app/.next/ || echo "No .next directory found"
+RUN ls -la /app/.next/standalone || echo "No standalone directory found" 
 
 # If using npm comment out above and use below instead
 # RUN npm run build
@@ -83,4 +88,7 @@ ENV PORT 3000
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/next-config-js/output
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+
+# server.js is created by next build from the standalone output
+# https://nextjs.org/docs/pages/api-reference/next-config-js/output
 CMD ["node", "server.js"]

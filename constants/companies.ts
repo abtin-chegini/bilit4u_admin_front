@@ -1,0 +1,201 @@
+import { Company } from "@/constants/interfaces";
+
+const companies: Company[] = [
+  {
+    id: "0",
+    name: "تمام شرکت‌ها",
+    englishName: "AllCompanies",
+  },
+  {
+    id: "ARTA",
+    name: "آرتاسبلان",
+    englishName: "ArtaSabalan",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/ArtaSabalan.svg",
+  },
+  {
+    id: "ASRIRN",
+    name: "عصرایران",
+    englishName: "AsreIran",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/AsreIran.svg",
+  },
+  {
+    id: "ASUDEH",
+    name: "آسوده سفر",
+    englishName: "AsodeSafar",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/AsodeSafar.svg",
+  },
+  {
+    id: "ASYSFR",
+    name: "آسیا سفر",
+    englishName: "AsiaSafar",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/AsiaSafar.svg",
+  },
+  {
+    id: "DDRSYR",
+    name: "دیدارسیر",
+    englishName: "DidarSeur",
+  },
+  {
+    id: "GTYPMA",
+    name: "گیتی پیما",
+    englishName: "GitiPeyma",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/GitiPeyma.svg",
+    description: "شرکت حمل و نقل گیتی پیما - خدمات مسافربری",
+  },
+  {
+    id: "HMSFR",
+    name: "همسفر",
+    englishName: "Hamsafar",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/Hamsafar.svg",
+    description: "شرکت حمل و نقل همسفر - خدمات سفرهای بین شهری",
+  },
+  {
+    id: "IRNPYAMN",
+    name: "ایران پیام نو",
+    englishName: "IranPayamNo",
+  },
+  {
+    id: "IRNPYMN",
+    name: "ایران پیمان",
+    englishName: "IranPeyman",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/IranPeyman.svg",
+  },
+  {
+    id: "JVN",
+    name: "جوان سیر ایثار",
+    englishName: "JavanSeurEisaar",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/JavanSeur.svg",
+  },
+  {
+    id: "MAHAN",
+    name: "ماهان سفر",
+    englishName: "MahanSafar",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/MahanSafar.png",
+  },
+  {
+    id: "ROYAL",
+    name: "رویال سفر ایرانیان",
+    englishName: "RoyalSafarIranians",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/RoyalSafar.svg",
+  },
+  {
+    id: "SHNASR",
+    name: "شاهین عصر",
+    englishName: "ShahinAsr",
+  },
+  {
+    id: "SPHR",
+    name: "سپهر آسیا",
+    englishName: "SepehrAsia",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/SepehrAsia.svg",
+  },
+  {
+    id: "SYRSFR",
+    name: "سیروسفر",
+    englishName: "SeuroSafar",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/SeuroSafar.svg",
+  },
+  {
+    id: "T01",
+    name: "ایران پیما تعاونی 1",
+    englishName: "IranPeymaCooperative1",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/IranPeyma.svg",
+  },
+  {
+    id: "T02",
+    name: "پی ام تی تعاونی 2",
+    englishName: "PMTCooperative2",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/PMT.svg",
+  },
+  {
+    id: "T03",
+    name: "سفرسیر تعاونی 3",
+    englishName: "SafarSeurCooperative3",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/SeuroSafar2.svg",
+  },
+  {
+    id: "T04",
+    name: "ميهن نور تعاوني 4",
+    englishName: "MihanNoorCooperative4",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/MihanNoor.svg",
+  },
+  {
+    id: "T05",
+    name: "کیان سفر پاسارگاد",
+    englishName: "KianSafarPasargad",
+  },
+  {
+    id: "T06",
+    name: "ایمن سفر ایرانیان",
+    englishName: "ImanSafarIranians",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/ImanSafar.svg",
+  },
+  {
+    id: "T07",
+    name: "عدل تعاوني 7",
+    englishName: "AdlCooperative7",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/Adel.svg",
+  },
+  {
+    id: "T08",
+    name: "لوان نور تعاونی 8",
+    englishName: "LevanNoorCooperative8",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/LevanNoor.svg",
+  },
+  {
+    id: "T09",
+    name: "راهپیمای پارسیان تعاوني 9",
+    englishName: "RahPeymayParsianCooperative9",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/RahPeymaueParsian.svg",
+  },
+  {
+    id: "T10",
+    name: "مارال سیر تعاونی 10",
+    englishName: "MaralSeurCooperative10",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/MaralSeur.svg",
+  },
+  {
+    id: "T11",
+    name: "آريا سفر تعاونی 11",
+    englishName: "AriaSafarCooperative11",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/AriaSafar.svg",
+  },
+  {
+    id: "T12",
+    name: "گیتی نورد تعاوني 12",
+    englishName: "GitiNavardCooperative12",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/GitiNavard.svg",
+  },
+  {
+    id: "T13",
+    name: "تک سفر ایرانیان",
+    englishName: "TakSafarIranians",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/TakSafar.svg",
+  },
+  {
+    id: "T14",
+    name: "پارسیان شماره 14",
+    englishName: "ParsianNumber14",
+  },
+  {
+    id: "T15",
+    name: "ترابربی تا تعاونی 15",
+    englishName: "TarabarBitaCooperative15",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/TarabarBita.svg",
+    description: "شرکت تعاونی ترابربی تا - خدمات حمل و نقل",
+  },
+  {
+    id: "T16",
+    name: "جهان گشت مهر",
+    englishName: "JahanGashtMehr",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/JahanGashtMehr.svg",
+  },
+  {
+    id: "T17",
+    name: "پيك صبا",
+    englishName: "PeykSaba",
+    logoUrl: "https://cdn.bilit4u.com/companylogo/PeykSaba.svg",
+  },
+];
+
+export default companies;

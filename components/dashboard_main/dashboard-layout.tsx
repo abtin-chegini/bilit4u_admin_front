@@ -22,21 +22,23 @@ import {
 import { Button } from "@/components/ui/button"
 import MetricCards from "@/components/dashboard_main/metric-cards"
 import DashboardChart from "@/components/dashboard_main/dashboard-chart"
+import SearchComponent from "@/components/dashboard_admin_buy/plp/new/PLP/Search"
 import { cn } from "@/lib/utils"
 
 const menuItems = [
-  { icon: BarChart3, label: "پیشخوان", href: "/" },
-  { icon: Users, label: "مدیریت کاربران", href: "/users" },
-  { icon: CreditCard, label: "پرداخت ها", href: "/payments" },
-  { icon: ShoppingBag, label: "سفرهای خریداری شده", href: "/trips" },
-  { icon: MessageSquare, label: "درخواست های پشتیبانی", href: "/support" },
-  { icon: Building, label: "ترمینال ها", href: "/terminals" },
-  { icon: Building2, label: "شرکت ها", href: "/companies" },
-  { icon: Settings, label: "تنظیمات", href: "/settings" },
+  { icon: BarChart3, label: "پیشخوان", id: "dashboard" },
+  { icon: Users, label: "مدیریت کاربران", id: "users" },
+  { icon: CreditCard, label: "پرداخت ها", id: "payments" },
+  { icon: ShoppingBag, label: "سفرهای خریداری شده", id: "trips" },
+  { icon: MessageSquare, label: "درخواست های پشتیبانی", id: "support" },
+  { icon: Building, label: "ترمینال ها", id: "terminals" },
+  { icon: Building2, label: "شرکت ها", id: "companies" },
+  { icon: Settings, label: "تنظیمات", id: "settings" },
 ]
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [activeSection, setActiveSection] = useState("dashboard")
   const { signOut, user } = useAuth()
   const router = useRouter()
 
@@ -98,16 +100,17 @@ export default function DashboardLayout() {
             <nav className="p-4 space-y-2">
               {menuItems.map((item, index) => (
                 <motion.div
-                  key={item.href}
+                  key={item.id}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
                   <Button
                     variant="ghost"
+                    onClick={() => setActiveSection(item.id)}
                     className={cn(
                       "w-full justify-start gap-3 h-12 text-right",
-                      index === 0 && "bg-[#2caffe]/10 text-[#2caffe] border-r-2 border-[#2caffe]",
+                      activeSection === item.id && "bg-[#2caffe]/10 text-[#2caffe] border-r-2 border-[#2caffe]",
                     )}
                   >
                     <item.icon className="h-5 w-5 flex-shrink-0" />
@@ -133,8 +136,140 @@ export default function DashboardLayout() {
 
         {/* Main Content */}
         <main className="flex-1 p-6 space-y-6">
-          <MetricCards />
-          <DashboardChart />
+          <AnimatePresence mode="wait">
+            {activeSection === "dashboard" && (
+              <motion.div
+                key="dashboard"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                <MetricCards />
+                <DashboardChart />
+              </motion.div>
+            )}
+
+            {activeSection === "payments" && (
+              <motion.div
+                key="payments"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="w-full"
+              >
+                <SearchComponent
+                  SourceCity="11320000"
+                  DestinationCity="21310000"
+                  TravelDate="14040710"
+                />
+              </motion.div>
+            )}
+
+            {activeSection === "users" && (
+              <motion.div
+                key="users"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-center justify-center h-96"
+              >
+                <div className="text-center">
+                  <Users className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                  <h2 className="text-2xl font-bold text-gray-600 mb-2">مدیریت کاربران</h2>
+                  <p className="text-gray-500">این بخش در حال توسعه است</p>
+                </div>
+              </motion.div>
+            )}
+
+            {activeSection === "trips" && (
+              <motion.div
+                key="trips"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-center justify-center h-96"
+              >
+                <div className="text-center">
+                  <ShoppingBag className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                  <h2 className="text-2xl font-bold text-gray-600 mb-2">سفرهای خریداری شده</h2>
+                  <p className="text-gray-500">این بخش در حال توسعه است</p>
+                </div>
+              </motion.div>
+            )}
+
+            {activeSection === "support" && (
+              <motion.div
+                key="support"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-center justify-center h-96"
+              >
+                <div className="text-center">
+                  <MessageSquare className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                  <h2 className="text-2xl font-bold text-gray-600 mb-2">درخواست های پشتیبانی</h2>
+                  <p className="text-gray-500">این بخش در حال توسعه است</p>
+                </div>
+              </motion.div>
+            )}
+
+            {activeSection === "terminals" && (
+              <motion.div
+                key="terminals"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-center justify-center h-96"
+              >
+                <div className="text-center">
+                  <Building className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                  <h2 className="text-2xl font-bold text-gray-600 mb-2">ترمینال ها</h2>
+                  <p className="text-gray-500">این بخش در حال توسعه است</p>
+                </div>
+              </motion.div>
+            )}
+
+            {activeSection === "companies" && (
+              <motion.div
+                key="companies"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-center justify-center h-96"
+              >
+                <div className="text-center">
+                  <Building2 className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                  <h2 className="text-2xl font-bold text-gray-600 mb-2">شرکت ها</h2>
+                  <p className="text-gray-500">این بخش در حال توسعه است</p>
+                </div>
+              </motion.div>
+            )}
+
+            {activeSection === "settings" && (
+              <motion.div
+                key="settings"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-center justify-center h-96"
+              >
+                <div className="text-center">
+                  <Settings className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                  <h2 className="text-2xl font-bold text-gray-600 mb-2">تنظیمات</h2>
+                  <p className="text-gray-500">این بخش در حال توسعه است</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </main>
       </div>
     </div>

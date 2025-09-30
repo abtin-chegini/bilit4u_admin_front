@@ -6,7 +6,8 @@
 /* Adding IRANYekan Persian font family declarations */
 @font-face {
   font-family: "IRANYekan-Regular";
-  src: url("/fonts/IRANYekan-Regular.woff2") format("woff2"), url("/fonts/IRANYekan-Regular.woff") format("woff");
+  src: url("/fonts/IRANYekan-Regular.woff2") format("woff2"),
+    url("/fonts/IRANYekan-Regular.woff") format("woff");
   font-weight: normal;
   font-style: normal;
   font-display: swap; /* Ensures text is visible while the font loads */
@@ -14,7 +15,8 @@
 
 @font-face {
   font-family: "IRANYekan-Black";
-  src: url("/fonts/IRANYekan-Black.woff2") format("woff2"), url("/fonts/IRANYekan-Black.woff") format("woff");
+  src: url("/fonts/IRANYekan-Black.woff2") format("woff2"),
+    url("/fonts/IRANYekan-Black.woff") format("woff");
   font-weight: normal;
   font-style: normal;
   font-display: swap; /* Ensures text is visible while the font loads */
@@ -22,7 +24,8 @@
 
 @font-face {
   font-family: "IRANYekan-Bold";
-  src: url("/fonts/IRANYekan-Bold.woff2") format("woff2"), url("/fonts/IRANYekan-Bold.woff") format("woff");
+  src: url("/fonts/IRANYekan-Bold.woff2") format("woff2"),
+    url("/fonts/IRANYekan-Bold.woff") format("woff");
   font-weight: normal;
   font-style: normal;
   font-display: swap; /* Ensures text is visible while the font loads */
@@ -30,7 +33,8 @@
 
 @font-face {
   font-family: "IRANYekan-Light";
-  src: url("/fonts/IRANYekan-Light.woff2") format("woff2"), url("/fonts/IRANYekan-Light.woff") format("woff");
+  src: url("/fonts/IRANYekan-Light.woff2") format("woff2"),
+    url("/fonts/IRANYekan-Light.woff") format("woff");
   font-weight: normal;
   font-style: normal;
   font-display: swap; /* Ensures text is visible while the font loads */
@@ -38,7 +42,8 @@
 
 @font-face {
   font-family: "IRANYekan-ExtraBlack";
-  src: url("/fonts/IRANYekan-ExtraBlack.woff2") format("woff2"), url("/fonts/IRANYekan-ExtraBlack.woff") format("woff");
+  src: url("/fonts/IRANYekan-ExtraBlack.woff2") format("woff2"),
+    url("/fonts/IRANYekan-ExtraBlack.woff") format("woff");
   font-weight: normal;
   font-style: normal;
   font-display: swap; /* Ensures text is visible while the font loads */
@@ -46,7 +51,8 @@
 
 @font-face {
   font-family: "IranYekanVariable";
-  src: url("/fonts/IRANYekanXVF.woff2") format("woff2"), url("/fonts/IRANYekanXVF.woff") format("woff");
+  src: url("/fonts/IRANYekanXVF.woff2") format("woff2"),
+    url("/fonts/IRANYekanXVF.woff") format("woff");
   font-weight: normal;
   font-style: normal;
   font-display: swap; /* Ensures text is visible while the font loads */
@@ -54,7 +60,8 @@
 
 @font-face {
   font-family: "IranYekanExtraBold";
-  src: url("/fonts/IRANYekanX-ExtraBold.woff2") format("woff2"), url("/fonts/IRANYekanX-ExtraBold.woff") format("woff");
+  src: url("/fonts/IRANYekanX-ExtraBold.woff2") format("woff2"),
+    url("/fonts/IRANYekanX-ExtraBold.woff") format("woff");
   font-weight: normal;
   font-style: normal;
   font-display: swap; /* Ensures text is visible while the font loads */
@@ -62,7 +69,8 @@
 
 @font-face {
   font-family: "IranYekanHeavy";
-  src: url("/fonts/IRANYekanX-Heavy.woff2") format("woff2"), url("/fonts/IRANYekanX-Heavy.woff") format("woff");
+  src: url("/fonts/IRANYekanX-Heavy.woff2") format("woff2"),
+    url("/fonts/IRANYekanX-Heavy.woff") format("woff");
   font-weight: normal;
   font-style: normal;
   font-display: swap; /* Ensures text is visible while the font loads */
@@ -70,7 +78,8 @@
 
 @font-face {
   font-family: "IranYekanMedium";
-  src: url("/fonts/IRANYekanX-Medium.woff2") format("woff2"), url("/fonts/IRANYekanX-Medium.woff") format("woff");
+  src: url("/fonts/IRANYekanX-Medium.woff2") format("woff2"),
+    url("/fonts/IRANYekanX-Medium.woff") format("woff");
   font-weight: normal;
   font-style: normal;
   font-display: swap; /* Ensures text is visible while the font loads */
@@ -204,5 +213,43 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .font-IranYekanRegular {
+    font-family: var(--font-iran-yekan);
+  }
+
+  .font-IranYekanBold {
+    font-family: var(--font-iran-yekan-bold);
+  }
+
+  .font-IranYekanBlack {
+    font-family: var(--font-iran-yekan-black);
+  }
+
+  .font-IranYekanLight {
+    font-family: var(--font-iran-yekan-light);
+  }
+
+  .font-IranYekanExtraBlack {
+    font-family: var(--font-iran-yekan-extra-black);
+  }
+
+  .font-IranYekanVariable {
+    font-family: var(--font-iran-yekan-variable);
+  }
+
+  .font-IranYekanExtraBold {
+    font-family: var(--font-iran-yekan-extra-bold);
+  }
+
+  .font-IranYekanHeavy {
+    font-family: var(--font-iran-yekan-heavy);
+  }
+
+  .font-IranYekanMedium {
+    font-family: var(--font-iran-yekan-medium);
   }
 }
