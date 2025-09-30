@@ -147,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				...session,
 				access_token: refreshData.access_token,
 				refresh_token: refreshData.refresh_token || session?.refresh_token,
-				expires_at: Math.floor(Date.now() / 1000) + 360, // 6 minutes from now
+				// Let backend handle expiration - don't set expires_at in frontend
 			} as Session
 
 			// Update session with new tokens
@@ -237,8 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				const mockSession = {
 					access_token: jwtToken,
 					refresh_token: (backendData as any).refresh_token || (backendData as any).refreshToken,
-					expires_in: 360, // 6 minutes
-					expires_at: Math.floor(Date.now() / 1000) + 360,
+					// Let backend handle expiration - don't set expires_in or expires_at in frontend
 					token_type: 'bearer',
 					user: mockUser,
 				} as Session
@@ -300,14 +299,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				const storedSession = localStorage.getItem('auth_session')
 				if (storedSession) {
 					const session = JSON.parse(storedSession)
-					const now = Math.floor(Date.now() / 1000)
 
-					// Check if session is still valid
-					if (session.expires_at > now) {
+					console.log('🔄 [SESSION CHECK] Checking stored session on page refresh...')
+					console.log('🔄 [SESSION CHECK] Found stored session, restoring user session')
+					console.log('🔄 [SESSION CHECK] Access token:', session.access_token ? session.access_token.substring(0, 20) + '...' : 'NOT FOUND')
+					console.log('🔄 [SESSION CHECK] Refresh token:', session.refresh_token ? session.refresh_token.substring(0, 20) + '...' : 'NOT FOUND')
+
+					// If we have tokens, restore the session
+					// Backend will handle token validation and refresh
+					if (session.access_token && session.refresh_token) {
+						console.log('✅ [SESSION CHECK] Valid tokens found, restoring user session')
 						setSession(session)
 						setUser(session.user)
 					} else {
-						// Session expired, clear it
+						console.log('❌ [SESSION CHECK] Missing tokens, clearing session')
 						localStorage.removeItem('auth_session')
 					}
 				}

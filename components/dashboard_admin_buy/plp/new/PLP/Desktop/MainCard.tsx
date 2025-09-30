@@ -491,7 +491,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                       خرید بلیط
                     </button>
 
-                    <div className="text-sm xl:text-base text-[#0D5990] font-IranYekanBold">
+                    <div dir="rtl" className="text-sm xl:text-base text-[#0D5990] font-IranYekanBold">
                       {numberConvertor(
                         parseInt(data?.FullPrice ? (parseInt(data.FullPrice) / 10).toString() : "")?.toLocaleString() ?? ""
                       )}{" "}
@@ -536,7 +536,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                         style={{ borderRadius: "5px" }}
                       />
                     ) : (
-                      <div className="text-deactive text-xxs">{arrivalDate}</div>
+                      <div dir="rtl" className="text-deactive text-xxs">{arrivalDate}</div>
                     )}
                   </div>
 
@@ -554,7 +554,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                         </div>
 
                         {/* Curve section */}
-                        <div className="relative w-full h-[40px] mb-2">
+                        <div className="relative w-full h-[40px] mb-2" dir="rtl">
                           {/* Extended dashed line for longer curve */}
                           <div className="absolute top-1/2 left-0 w-full border-t-2 border-dashed border-[#0D5990] -translate-y-1/2 scale-x-110" />
                           <div className="absolute w-4 h-4 bg-[#0D5990] rounded-full top-1/2 left-0 -translate-y-1/2" />
@@ -567,7 +567,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                         </div>
 
                         {/* Distance below the curve */}
-                        <div className="text-[#7A7A7A] text-[12px] font-IranYekanRegular text-center">
+                        <div dir="rtl" className="text-[#7A7A7A] text-[12px] font-IranYekanRegular text-center">
                           {routeInfo.formattedDistance}
                         </div>
                       </div>
@@ -608,7 +608,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                         style={{ borderRadius: "5px" }}
                       />
                     ) : (
-                      <div className="text-deactive text-xxs">{departureDate}</div>
+                      <div dir="rtl" className="text-deactive text-xxs">{departureDate}</div>
                     )}
                   </div>
                 </div>
@@ -709,7 +709,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                       style={{ borderRadius: "5px" }}
                     />
                   ) : (
-                    <div className="text-deactive text-xxs">{arrivalDate}</div>
+                    <div dir="rtl" className="text-deactive text-xxs">{arrivalDate}</div>
                   )}
                 </div>
 
@@ -727,7 +727,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                       </div>
 
                       {/* Curve section */}
-                      <div className="relative w-full h-[35px] mb-2">
+                      <div className="relative w-full h-[35px] mb-2" dir="rtl">
                         {/* Extended dashed line for longer curve */}
                         <div className="absolute top-1/2 left-0 w-full border-t-2 border-dashed border-[#0D5990] -translate-y-1/2 scale-x-110" />
                         <div className="absolute w-4 h-4 bg-[#0D5990] rounded-full top-1/2 left-0 -translate-y-1/2" />
@@ -740,7 +740,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                       </div>
 
                       {/* Distance below the curve */}
-                      <div className="text-[#7A7A7A] text-[12px] mt-3 font-IranYekanRegular text-center">
+                      <div dir="rtl" className="text-[#7A7A7A] text-[12px] mt-3 font-IranYekanRegular text-center">
                         {routeInfo.formattedDistance}
                       </div>
                     </div>
@@ -781,7 +781,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                       style={{ borderRadius: "5px" }}
                     />
                   ) : (
-                    <div className="text-deactive text-xxs">{departureDate}</div>
+                    <div dir="rtl" className="text-deactive text-xxs">{departureDate}</div>
                   )}
                 </div>
               </div>
@@ -815,7 +815,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                 </div>
               ) : (
                 <div className="flex flex-col gap-y-2">
-                  <div className="text-base text-primary font-IranYekanRegular text-center ">
+                  <div dir="rtl" className="text-base text-primary font-IranYekanRegular text-right">
                     {numberConvertor(
                       parseInt(data?.FullPrice ? (parseInt(data.FullPrice) / 10).toString() : "")?.toLocaleString() ?? ""
                     )}{" "}
@@ -927,7 +927,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                     style={{ borderRadius: "5px" }}
                   />
                 ) : (
-                  <div className="text-deactive text-xxs">{arrivalDate}</div>
+                  <div dir="rtl" className="text-deactive text-xxs">{arrivalDate}</div>
                 )}
               </div>
 
@@ -940,7 +940,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                 )}
 
                 {/* Curve with dashes and circles */}
-                <div className="flex items-center h-full w-full relative">
+                <div className="flex items-center h-full w-full relative" dir="rtl">
                   <div className="w-3 h-3 bg-[#0D5990] rounded-full px-1" />
                   {/* Extended dashed line for mobile */}
                   <hr className="border-dashed border-primary w-full scale-x-110" />
@@ -986,7 +986,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                     style={{ borderRadius: "5px" }}
                   />
                 ) : (
-                  <div className="text-deactive text-xxs">{departureDate}</div>
+                  <div dir="rtl" className="text-deactive text-xxs">{departureDate}</div>
                 )}
               </div>
             </div>
@@ -994,7 +994,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
             {/* Distance and Capacity info below the curve */}
             {!isPending && (
               <div className="flex flex-col items-center gap-1">
-                <div className="text-[#7A7A7A] text-[12px] font-IranYekanRegular">
+                <div dir="rtl" className="text-[#7A7A7A] text-[12px] font-IranYekanRegular">
                   {routeInfo.formattedDistance}
                 </div>
 
@@ -1074,7 +1074,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
                 </div>
               </div>
 
-              <div className="text-sm xl:text-base text-[#0D5990] font-IranYekanBold">
+              <div dir="rtl" className="text-sm xl:text-base text-[#0D5990] font-IranYekanBold">
                 {numberConvertor(
                   parseInt(data?.FullPrice ? (parseInt(data.FullPrice) / 10).toString() : "")?.toLocaleString() ?? ""
                 )}{" "}
@@ -1254,7 +1254,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog >
     </>
   );
 };
