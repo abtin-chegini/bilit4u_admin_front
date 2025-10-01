@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils"
 const menuItems = [
   { icon: BarChart3, label: "پیشخوان", id: "dashboard" },
   { icon: Users, label: "مدیریت کاربران", id: "users" },
-  { icon: CreditCard, label: "پرداخت ها", id: "payments" },
+  { icon: CreditCard, label: "خرید آژانسی", id: "payments" },
   { icon: ShoppingBag, label: "سفرهای خریداری شده", id: "trips" },
   { icon: MessageSquare, label: "درخواست های پشتیبانی", id: "support" },
   { icon: Building, label: "ترمینال ها", id: "terminals" },

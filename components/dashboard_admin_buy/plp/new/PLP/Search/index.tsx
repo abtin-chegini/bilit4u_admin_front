@@ -18,7 +18,6 @@ import { useSupportSearch } from "@/hooks/useSupportSearch";
 import { SrvRequestRes, SrvRequestResItem } from "@/constants/interfaces";
 import Skeleton from "react-loading-skeleton";
 import numberConvertor from "@/lib/numberConvertor";
-import FAQ from "@/components/dashboard_admin_buy/plp/new/PLP/Desktop/FAQ";
 import Pagination from "@/components/dashboard_admin_buy/plp/new/PLP/Desktop/Pagination";
 import NoData from "@/components/dashboard_admin_buy/plp/new/PLP/Desktop/NoData";
 import CompaniesFilter from "@/components/dashboard_admin_buy/plp/new/PLP/Desktop/CompaniesFilter";
@@ -55,6 +54,13 @@ import {
 import { useRouter } from "next/navigation";
 import Lottie from "lottie-react";
 import { Icon } from "@iconify/react";
+import SourceSearchBox from "@/components/ui/SourceSearchbox/SourceSearchbox";
+import DestinationSearchBox from "@/components/ui/DestinationSearchbox/DestinationSearchbox";
+import { useSourceStore } from "@/store/SourceStore";
+import { useDestinationStore } from "@/store/DestinationStore";
+import { useTravelDateStore } from "@/store/TravelDateStore";
+import { Button } from "@/components/ui/button";
+import DatePickerBig from "@/components/ui/DatePickerBig/DatePickerBig";
 
 interface SearchComponentProps {
 	SourceCity?: string;
@@ -135,6 +141,30 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 	const [open, setOpen] = React.useState(false);
 	const [timeFilter, setTimeFilter] = useState<number>(0);
 	const [initialLoading, setInitialLoading] = useState<boolean>(true);
+
+	// Search input states
+	const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
+	const [isSearching, setIsSearching] = useState<boolean>(false);
+	const [isRotating, setIsRotating] = useState<boolean>(false);
+
+	// Get source and destination store functions
+	const {
+		sourceID,
+		sourceCity,
+		setSourceCity,
+		setValue: setSourceValue,
+		value: sourceValue
+	} = useSourceStore();
+
+	const {
+		destinationID,
+		destinationCity,
+		setDestinationCity,
+		setValue: setDestinationValue,
+		value: destinationValue
+	} = useDestinationStore();
+
+	const { travelDate, isDateValid } = useTravelDateStore();
 
 	const [isBed, setIsBed] = useState<boolean>(false);
 	const [isMonitor, setIsMonitor] = useState<boolean>(false);
@@ -468,6 +498,56 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 		}
 	};
 
+	// Handle switching source and destination
+	const handleSwitchCities = () => {
+		// Trigger rotation animation
+		setIsRotating(true);
+
+		// Get current values from stores
+		const tempSourceID = sourceID;
+		const tempSourceCity = sourceCity;
+		const tempSourceValue = sourceValue;
+
+		const tempDestID = destinationID;
+		const tempDestCity = destinationCity;
+		const tempDestValue = destinationValue;
+
+		// Check if we have valid values to swap
+		if (tempSourceCity && tempSourceCity !== "شهر مبداء" &&
+			tempDestCity && tempDestCity !== "شهر مقصد") {
+
+			// Swap the values
+			setSourceCity(tempDestID || "", tempDestCity);
+			setSourceValue(tempDestCity);
+
+			setDestinationCity(tempSourceID || "", tempSourceCity);
+			setDestinationValue(tempSourceCity);
+
+			console.log("Cities swapped:", {
+				newSource: tempDestCity,
+				newDestination: tempSourceCity
+			});
+		}
+
+		// Reset rotation after animation completes
+		setTimeout(() => {
+			setIsRotating(false);
+		}, 300);
+	};
+
+	// Handle search button click
+	const handleSearch = () => {
+		if (sourceID && destinationID) {
+			setIsSearching(true);
+			setShowSearchResults(true);
+			// Trigger search with current selections from stores
+			const dateStr = travelDate || TravelDate;
+			fetchData(dateStr, sort);
+			// Reset searching state after a delay
+			setTimeout(() => setIsSearching(false), 1000);
+		}
+	};
+
 	const handleSortClick = (sortKey: "cheap" | "expensive") => {
 		// Toggle sorting: if clicking the active sort, return to "fastest"
 		const newSort = sort === sortKey ? "fastest" : sortKey;
@@ -546,534 +626,634 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 				/>
 			)}
 			<div className="min-h-full w-full bg-[#FAFAFA] relative overflow-auto">
-				<TopComponent
-					isPending={isPending}
-					activeDate={activeDate}
-					setActiveDate={handleDateChange}
-				/>
-				{initialLoading && <LottiePreloader />}
+				{/* Beautiful Search Header */}
+				<div className="w-full bg-gradient-to-r from-[#0d5990] to-[#0a4a7a] py-12 px-4 lg:px-16 shadow-lg">
+					<div className="max-w-6xl mx-auto">
+						<h1 className="text-white text-3xl font-IranYekanBold mb-8 text-center">
+							جستجوی بلیط اتوبوس
+						</h1>
+						<div className="bg-white rounded-2xl shadow-2xl p-6">
+							<div className="flex flex-col lg:flex-row items-end gap-3" dir="rtl">
+								{/* Source City Input */}
+								<div className="flex-1 w-full">
+									<label className="block text-sm font-IranYekanBold text-gray-700 mb-2 text-right">
+										مبدا
+									</label>
+									<SourceSearchBox />
+								</div>
 
-				<div
-					className={`mt-7 px-4 lg:px-16 ${isMobile ? 'pt-20' : ''}`}
-					id="main_div"
-				>
-					<div className="gap-y-7 flex flex-col">
-						{isPending ? (
-							<Skeleton
-								width={600}
-								height={24}
-								containerClassName="text-lg text-black direction-rtl hidden lg:block"
-								style={{ borderRadius: "25px" }}
-							/>
-						) : (
-							<div dir="rtl" className="text-lg text-black direction-rtl hidden lg:block font-IranYekanRegular">
-								تعداد {numberConvertor(totalItems?.toString() ?? "")}{" "}
-								سرویس&nbsp; از&nbsp; &nbsp;
-								{getCityFarsiByID(SourceCity)}&nbsp; تا&nbsp; &nbsp;
-								{getCityFarsiByID(DestinationCity)} در تاریخ {activeDate} از
-								ساعت ۰۰:۱۵ تا ساعت ۲۳:۵۹ یافت شد
-							</div>
-						)}
-
-						{/* Filter Buttons Row - RTL from right */}
-						<div dir="rtl" className="hidden lg:flex flex-wrap gap-2 mb-4 justify-start">
-							{/* Remove All Filters Button */}
-
-
-							{/* Time Filter Dialog */}
-							<Dialog open={openDialogs.time} onOpenChange={(open) => setOpenDialogs(prev => ({ ...prev, time: open }))}>
-								<DialogTrigger asChild>
-									<button className={`flex items-center gap-2 px-4 py-2 border rounded-lg font-IranYekanRegular transition-colors ${timeFilter > 0
-										? 'bg-[#0d5990] text-white border-[#0d5990] hover:bg-[#0a4a7a]'
-										: 'bg-white border-gray-300 hover:bg-gray-50'
-										}`}>
-										<Icon icon="mdi:clock-outline" className="w-4 h-4" />
-										زمان
-										{timeFilter > 0 && <div className="w-2 h-2 bg-white rounded-full"></div>}
-									</button>
-								</DialogTrigger>
-								<DialogContent className="max-w-md" dir="rtl" showCloseButton={false}>
-									<DialogHeader className="text-right relative">
-										<button
-											onClick={() => setOpenDialogs(prev => ({ ...prev, time: false }))}
-											className="absolute left-0 top-0 p-2 hover:bg-gray-100 rounded-full"
-										>
-											<Icon icon="mdi:close" className="w-5 h-5" />
-										</button>
-										<DialogTitle className="font-IranYekanBold text-right pr-10">فیلتر زمان</DialogTitle>
-									</DialogHeader>
-									<div className="py-4">
-										<div className="bg-white border border-secondary rounded-md p-4 font-IranYekanRegular">
-											<div className="flex items-center justify-between mb-4">
-												<div className="flex items-center gap-3">
-													<Icon icon="mdi:clock-outline" className="w-5 h-5 text-[#0d5990]" />
-													<span className="font-IranYekanBold text-right">زمان حرکت</span>
-												</div>
-											</div>
-											<div className="space-y-4">
-												{/* Time Range Selector */}
-												<div className="space-y-2">
-													<TimeRangeSelector
-														onTimeChange={(timeValue: number) => {
-															handleTimeChange(timeValue.toString());
-															handleTimeFilterChange(timeValue);
-														}}
-													/>
-												</div>
-											</div>
-										</div>
-									</div>
-									<DialogFooter className="justify-start">
-										<button className="px-4 py-2 bg-[#0d5990] text-white rounded-lg hover:bg-[#0a4a7a] font-IranYekanRegular">
-											اعمال فیلتر
-										</button>
-									</DialogFooter>
-								</DialogContent>
-							</Dialog>
-
-							{/* Company Filter - Direct CompaniesFilter Component */}
-							<div className="relative">
-								<button
-									data-company-button
-									onClick={() => {
-										// Toggle the company filter visibility
-										const companyFilter = document.getElementById('company-filter');
-										if (companyFilter) {
-											companyFilter.style.display = companyFilter.style.display === 'none' ? 'block' : 'none';
+								{/* Swap Button */}
+								<div className="hidden lg:block">
+									<button
+										onClick={handleSwitchCities}
+										className={`
+											w-[48px] h-[48px]
+											rounded-md bg-white border border-gray-200
+											hover:bg-gray-50 hover:border-gray-300
+											active:bg-gray-100
+											transition-all duration-200
+											flex items-center justify-center
+											shadow-sm hover:shadow-md
+											${isRotating ? 'animate-spin' : ''}
+											disabled:opacity-50 disabled:cursor-not-allowed
+										`}
+										disabled={
+											!sourceCity || sourceCity === "شهر مبداء" ||
+											!destinationCity || destinationCity === "شهر مقصد"
 										}
-									}}
-									className={`flex items-center gap-2 px-4 py-2 border rounded-lg font-IranYekanRegular transition-colors ${(company && company !== '0') || (selectedCompanies && selectedCompanies.length > 0 && !selectedCompanies.includes('0'))
-										? 'bg-[#0d5990] text-white border-[#0d5990] hover:bg-[#0a4a7a]'
-										: 'bg-white border-gray-300 hover:bg-gray-50'
-										}`}
-								>
-									<Icon icon="mdi:office-building" className="w-4 h-4" />
-									شرکت
-									{(company && company !== '0') || (selectedCompanies && selectedCompanies.length > 0 && !selectedCompanies.includes('0')) ? (
-										<div className="w-2 h-2 bg-white rounded-full"></div>
-									) : null}
-								</button>
+									>
+										<Icon
+											icon="tabler:arrows-exchange-2"
+											className="w-5 h-5 text-gray-600"
+										/>
+									</button>
+								</div>
 
-								{/* CompaniesFilter Component - Hidden by default */}
-								<div
-									id="company-filter"
-									className="absolute top-full right-0 mt-2 w-80 z-50 hidden"
-									style={{ display: 'none' }}
-								>
-									<CompaniesFilter
-										isPending={isPending}
-										setCompany={setCompany}
-										company={company}
-										selectedCompanies={selectedCompanies}
-										setSelectedCompanies={setSelectedCompanies}
-									/>
+								{/* Destination City Input */}
+								<div className="flex-1 w-full">
+									<label className="block text-sm font-IranYekanBold text-gray-700 mb-2 text-right">
+										مقصد
+									</label>
+									<DestinationSearchBox />
+								</div>
+
+								{/* Date Input */}
+								<div className="flex-1 w-full">
+									<label className="block text-sm font-IranYekanBold text-gray-700 mb-2 text-right">
+										تاریخ سفر
+									</label>
+									<DatePickerBig />
+								</div>
+
+								{/* Search Button */}
+								<div className="w-full lg:w-auto">
+									<Button
+										onClick={handleSearch}
+										disabled={!sourceID || !destinationID || isSearching}
+										className="w-full lg:w-auto px-12 h-[48px] bg-[#0d5990] hover:bg-[#0a4a7a] text-white font-IranYekanBold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+									>
+										{isSearching ? (
+											<>
+												<Icon icon="mdi:loading" className="w-6 h-6 ml-2 animate-spin" />
+												در حال جستجو...
+											</>
+										) : (
+											<>
+												<Icon icon="mdi:magnify" className="w-6 h-6 ml-2" />
+												جستجو
+											</>
+										)}
+									</Button>
 								</div>
 							</div>
-
-							{/* Amenities Filter Dialog */}
-							<Dialog open={openDialogs.amenities} onOpenChange={(open) => setOpenDialogs(prev => ({ ...prev, amenities: open }))}>
-								<DialogTrigger asChild>
-									<button className={`flex items-center gap-2 px-4 py-2 border rounded-lg font-IranYekanRegular transition-colors ${isMonitor || isBed || isCharger
-										? 'bg-[#0d5990] text-white border-[#0d5990] hover:bg-[#0a4a7a]'
-										: 'bg-white border-gray-300 hover:bg-gray-50'
-										}`}>
-										<Icon icon="mdi:star-outline" className="w-4 h-4" />
-										امکانات
-										{(isMonitor || isBed || isCharger) && <div className="w-2 h-2 bg-white rounded-full"></div>}
-									</button>
-								</DialogTrigger>
-								<DialogContent className="max-w-md" dir="rtl" showCloseButton={false}>
-									<DialogHeader className="text-right relative">
-										<button
-											onClick={() => setOpenDialogs(prev => ({ ...prev, amenities: false }))}
-											className="absolute left-0 top-0 p-2 hover:bg-gray-100 rounded-full"
-										>
-											<Icon icon="mdi:close" className="w-5 h-5" />
-										</button>
-										<DialogTitle className="font-IranYekanBold text-right pr-10">فیلتر امکانات</DialogTitle>
-									</DialogHeader>
-									<div className="py-4">
-										<div className="bg-white border border-secondary rounded-md p-4 space-y-4 font-IranYekanRegular">
-											{/* Monitor Checkbox */}
-											<div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-												<div className="flex items-center gap-3">
-													<Icon icon="mdi:monitor" className="w-5 h-5 text-[#0d5990]" />
-													<span className="font-IranYekanRegular text-right">مانیتور</span>
-												</div>
-												<input
-													type="checkbox"
-													checked={isMonitor}
-													onChange={(e) => setIsMonitor(e.target.checked)}
-													className="w-4 h-4 text-[#0d5990] rounded focus:ring-[#0d5990]"
-												/>
-											</div>
-
-											{/* Bed Checkbox */}
-											<div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-												<div className="flex items-center gap-3">
-													<Icon icon="mdi:bed" className="w-5 h-5 text-[#0d5990]" />
-													<span className="font-IranYekanRegular text-right">تخت خواب</span>
-												</div>
-												<input
-													type="checkbox"
-													checked={isBed}
-													onChange={(e) => setIsBed(e.target.checked)}
-													className="w-4 h-4 text-[#0d5990] rounded focus:ring-[#0d5990]"
-												/>
-											</div>
-
-											{/* Charger Checkbox */}
-											<div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-												<div className="flex items-center gap-3">
-													<Icon icon="mdi:power-plug" className="w-5 h-5 text-[#0d5990]" />
-													<span className="font-IranYekanRegular text-right">شارژر</span>
-												</div>
-												<input
-													type="checkbox"
-													checked={isCharger}
-													onChange={(e) => setIsCharger(e.target.checked)}
-													className="w-4 h-4 text-[#0d5990] rounded focus:ring-[#0d5990]"
-												/>
-											</div>
-										</div>
-									</div>
-									<DialogFooter className="justify-start">
-										<button className="px-4 py-2 bg-[#0d5990] text-white rounded-lg hover:bg-[#0a4a7a] font-IranYekanRegular">
-											اعمال فیلتر
-										</button>
-									</DialogFooter>
-								</DialogContent>
-							</Dialog>
-
-							{/* Price Filter Dialog */}
-							<Dialog open={openDialogs.price} onOpenChange={(open) => setOpenDialogs(prev => ({ ...prev, price: open }))}>
-								<DialogTrigger asChild>
-									<button className={`flex items-center gap-2 px-4 py-2 border rounded-lg font-IranYekanRegular transition-colors ${maxFullPrice && maxFullPrice !== "20000000"
-										? 'bg-[#0d5990] text-white border-[#0d5990] hover:bg-[#0a4a7a]'
-										: 'bg-white border-gray-300 hover:bg-gray-50'
-										}`}>
-										<Icon icon="mdi:currency-usd" className="w-4 h-4" />
-										قیمت
-										{maxFullPrice && maxFullPrice !== "20000000" && <div className="w-2 h-2 bg-white rounded-full"></div>}
-									</button>
-								</DialogTrigger>
-								<DialogContent className="max-w-md" dir="rtl" showCloseButton={false}>
-									<DialogHeader className="text-right relative">
-										<button
-											onClick={() => setOpenDialogs(prev => ({ ...prev, price: false }))}
-											className="absolute left-0 top-0 p-2 hover:bg-gray-100 rounded-full"
-										>
-											<Icon icon="mdi:close" className="w-5 h-5" />
-										</button>
-										<DialogTitle className="font-IranYekanBold text-right pr-10">فیلتر قیمت</DialogTitle>
-									</DialogHeader>
-									<div className="py-4">
-										<div className="space-y-4">
-											<div>
-												<label className="block text-sm font-IranYekanRegular mb-2 text-right">حداکثر قیمت</label>
-												<input
-													type="range"
-													min="0"
-													max="50000000"
-													step="1000000"
-													value={maxFullPrice}
-													onChange={(e) => setMaxFullPrice(e.target.value)}
-													className="w-full"
-												/>
-												<div className="text-sm text-gray-600 font-IranYekanRegular mt-1 text-right">
-													{numberConvertor(maxFullPrice)} تومان
-												</div>
-											</div>
-										</div>
-									</div>
-									<DialogFooter className="justify-start">
-										<button className="px-4 py-2 bg-[#0d5990] text-white rounded-lg hover:bg-[#0a4a7a] font-IranYekanRegular">
-											اعمال فیلتر
-										</button>
-									</DialogFooter>
-								</DialogContent>
-							</Dialog>
-
-							{/* Other Filters Dialog */}
-							<Dialog open={openDialogs.other} onOpenChange={(open) => setOpenDialogs(prev => ({ ...prev, other: open }))}>
-								<DialogTrigger asChild>
-									<button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-IranYekanRegular">
-										<Icon icon="mdi:filter" className="w-4 h-4" />
-										سایر فیلترها
-									</button>
-								</DialogTrigger>
-								<DialogContent className="max-w-md" dir="rtl" showCloseButton={false}>
-									<DialogHeader className="text-right relative">
-										<button
-											onClick={() => setOpenDialogs(prev => ({ ...prev, other: false }))}
-											className="absolute left-0 top-0 p-2 hover:bg-gray-100 rounded-full"
-										>
-											<Icon icon="mdi:close" className="w-5 h-5" />
-										</button>
-										<DialogTitle className="font-IranYekanBold text-right pr-10">سایر فیلترها</DialogTitle>
-									</DialogHeader>
-									<div className="py-4">
-										<div className="bg-white border border-secondary rounded-md p-4 space-y-4 font-IranYekanRegular">
-											{/* Direct Route Checkbox */}
-											<div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-												<div className="flex items-center gap-3">
-													<Icon icon="mdi:route" className="w-5 h-5 text-[#0d5990]" />
-													<span className="font-IranYekanRegular text-right">فقط مسیر مستقیم</span>
-												</div>
-												<input
-													type="checkbox"
-													id="direct-only"
-													className="w-4 h-4 text-[#0d5990] rounded focus:ring-[#0d5990]"
-												/>
-											</div>
-
-											{/* Available Services Checkbox */}
-											<div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-												<div className="flex items-center gap-3">
-													<Icon icon="mdi:check-circle" className="w-5 h-5 text-[#0d5990]" />
-													<span className="font-IranYekanRegular text-right">فقط سرویس‌های موجود</span>
-												</div>
-												<input
-													type="checkbox"
-													id="available-only"
-													className="w-4 h-4 text-[#0d5990] rounded focus:ring-[#0d5990]"
-												/>
-											</div>
-										</div>
-									</div>
-									<DialogFooter className="justify-start">
-										<button className="px-4 py-2 bg-[#0d5990] text-white rounded-lg hover:bg-[#0a4a7a] font-IranYekanRegular">
-											اعمال فیلتر
-										</button>
-									</DialogFooter>
-								</DialogContent>
-							</Dialog>
-							<button
-								onClick={handleResetFilter}
-								className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 font-IranYekanRegular transition-colors"
-							>
-								<Icon icon="mdi:close-circle-outline" className="w-4 h-4" />
-								حذف همه فیلترها
-							</button>
-						</div>
-
-
-						<div dir="rtl" className="direction-rtl gap-x-4 items-center hidden lg:flex">
-							<div dir="rtl" className="text-black font-IranYekanRegular">نمایش بر اساس :</div>
-							{isPending ? (
-								<Skeleton
-									count={3}
-									width={107}
-									height={24}
-									containerClassName="flex items-center gap-x-4"
-									style={{ borderRadius: "25px" }}
-								/>
-							) : (
-								<div className="flex items-center gap-x-4">
-									<FilterBadge
-										title="ارزان ترین"
-										active={sort === "cheap"}
-										onClick={() => handleSortClick("cheap")}
-									/>
-									<FilterBadge
-										title="گران ترین"
-										active={sort === "expensive"}
-										onClick={() => handleSortClick("expensive")}
-									/>
-								</div>
-							)}
-						</div>
-
-						<div className="flex flex-col gap-y-2 sm:gap-y-7 pb-6 sm:pt-5 xs:pt-5">
-							{isPending || initialLoading ? (
-								<>
-									<MainCard />
-									<MainCard />
-									<MainCard />
-									<MainCard />
-								</>
-							) : (
-								currentPageData.length > 0 ? (
-									<>
-										{currentPageData.map((item: SrvRequestResItem, index: number) => (
-											<MainCard
-												data={item}
-												key={`main-card-${index}`}
-												isPending={isPending}
-											/>
-										))}
-
-										{Math.ceil(allServices.length / itemsPerPage) > 1 && (
-											<Pagination
-												pageNumber={currentPage}
-												setPageNumber={(page: number) => handleClientPagination(page)}
-												totalPages={Math.ceil(allServices.length / itemsPerPage)}
-											/>
-										)}
-									</>
-								) : (
-									<NoData />
-								)
-							)}
 						</div>
 					</div>
 				</div>
 
-				<FAQ />
-				<div className="fixed bottom-0 w-full rounded-t-md bg-[#2E5F9D] p-4 flex items-center justify-between lg:hidden">
-					<Drawer>
-						<DrawerTrigger>
-							<div className="bg-white text-[#0D5990] cursor-pointer rounded-md sm:rounded-xl px-6 sm:px-12 py-2  font-IranYekanRegular hover:bg-[#0D5990] hover:text-white">
-								نمایش فیلتر ها
-							</div>
-						</DrawerTrigger>
-						<DrawerContent>
-							<DrawerHeader>
-								<DrawerTitle className="font-IranYekanBold">
-									{" "}
-									انتخاب فیلترهای جستجو
-								</DrawerTitle>
-							</DrawerHeader>
-							<div className="flex flex-col gap-y-4 w-full px-4">
-								<RightCard
-									onTimeFilterChange={(timeValue: number) => {
-										// Update drawer state with the time filter value
-										if (drawerFilters.timeFilter !== timeValue) { // Prevent unnecessary updates
-											setDrawerFilters((prev) => ({
-												...prev,
-												timeFilter: timeValue
-											}));
-										}
-									}}
-									setValue={(value: SetStateAction<string>) =>
-										setDrawerFilters((prev) => ({
-											...prev,
-											time: typeof value === "function" ? value(prev.time) : value,
-										}))
-									}
-									isPending={isPending}
-									title="زمان حرکت"
-								/>
-								<CompaniesFilter
-									isPending={isPending}
-									setCompany={(value) => {
-										// Update both drawer state and main state immediately
-										setDrawerFilters((prev) => ({
-											...prev,
-											company: String(value ?? ""),
-										}));
-										setCompany(value);
-									}}
-									company={drawerFilters.company}
-									selectedCompanies={selectedCompanies}
-									setSelectedCompanies={setSelectedCompanies}
-								/>
-								<RightCheckCard
-									isPending={isPending}
-									isMonitor={drawerFilters.isMonitor}
-									setIsMonitor={(value: SetStateAction<boolean>) =>
-										setDrawerFilters((prev) => ({
-											...prev,
-											isMonitor: typeof value === "function" ? value(prev.isMonitor) : value,
-										}))
-									}
-									isBed={drawerFilters.isBed}
-									setIsBed={(value: SetStateAction<boolean>) =>
-										setDrawerFilters((prev) => ({
-											...prev,
-											isBed: typeof value === "function" ? value(prev.isBed) : value,
-										}))
-									}
-									isCharger={drawerFilters.isCharger}
-									setIsCharger={(value: SetStateAction<boolean>) =>
-										setDrawerFilters((prev) => ({
-											...prev,
-											isCharger: typeof value === "function" ? value(prev.isCharger) : value,
-										}))
-									}
-								/>
-							</div>
-							<div className="w-full flex flex-row items-center justify-center mt-3 px-4">
-								<div
-									className="flex flex-row items-center justify-center bg-white border border-gray-300 text-[#0D5990] 
-            rounded-md sm:rounded-xl xs:w-full xs:h-[40px] sm:px-12 py-2 font-IranYekanRegular
-            hover:bg-[#0D5990] hover:text-white cursor-pointer"
-									onClick={() =>
-										setDrawerFilters({
-											time: "30",
-											company: "",
-											isBed: false,
-											isMonitor: false,
-											isCharger: false,
-											timeFilter: 0
-										})
-									}
-								>
-									حدف تمامی فیلتر ها
+				{/* Search Results - Only show if source and destination are selected */}
+				{showSearchResults && sourceID && destinationID ? (
+					<>
+						<TopComponent
+							isPending={isPending}
+							activeDate={activeDate}
+							setActiveDate={handleDateChange}
+						/>
+						{initialLoading && <LottiePreloader />}
+
+						<div
+							className={`mt-7 px-4 lg:px-16 ${isMobile ? 'pt-20' : ''}`}
+							id="main_div"
+						>
+							<div className="gap-y-7 flex flex-col">
+								{isPending ? (
+									<Skeleton
+										width={600}
+										height={24}
+										containerClassName="text-lg text-black direction-rtl hidden lg:block"
+										style={{ borderRadius: "25px" }}
+									/>
+								) : (
+									<div dir="rtl" className="text-lg text-black direction-rtl hidden lg:block font-IranYekanRegular">
+										تعداد {numberConvertor(totalItems?.toString() ?? "")}{" "}
+										سرویس&nbsp; از&nbsp; &nbsp;
+										{getCityFarsiByID(SourceCity)}&nbsp; تا&nbsp; &nbsp;
+										{getCityFarsiByID(DestinationCity)} در تاریخ {activeDate} از
+										ساعت ۰۰:۱۵ تا ساعت ۲۳:۵۹ یافت شد
+									</div>
+								)}
+
+								{/* Filter Buttons Row - RTL from right */}
+								<div dir="rtl" className="hidden lg:flex flex-wrap gap-2 mb-4 justify-start">
+									{/* Remove All Filters Button */}
+
+
+									{/* Time Filter Dialog */}
+									<Dialog open={openDialogs.time} onOpenChange={(open) => setOpenDialogs(prev => ({ ...prev, time: open }))}>
+										<DialogTrigger asChild>
+											<button className={`flex items-center gap-2 px-4 py-2 border rounded-lg font-IranYekanRegular transition-colors ${timeFilter > 0
+												? 'bg-[#0d5990] text-white border-[#0d5990] hover:bg-[#0a4a7a]'
+												: 'bg-white border-gray-300 hover:bg-gray-50'
+												}`}>
+												<Icon icon="mdi:clock-outline" className="w-4 h-4" />
+												زمان
+												{timeFilter > 0 && <div className="w-2 h-2 bg-white rounded-full"></div>}
+											</button>
+										</DialogTrigger>
+										<DialogContent className="max-w-md" dir="rtl" showCloseButton={false}>
+											<DialogHeader className="text-right relative">
+												<button
+													onClick={() => setOpenDialogs(prev => ({ ...prev, time: false }))}
+													className="absolute left-0 top-0 p-2 hover:bg-gray-100 rounded-full"
+												>
+													<Icon icon="mdi:close" className="w-5 h-5" />
+												</button>
+												<DialogTitle className="font-IranYekanBold text-right pr-10">فیلتر زمان</DialogTitle>
+											</DialogHeader>
+											<div className="py-4">
+												<div className="bg-white border border-secondary rounded-md p-4 font-IranYekanRegular">
+													<div className="flex items-center justify-between mb-4">
+														<div className="flex items-center gap-3">
+															<Icon icon="mdi:clock-outline" className="w-5 h-5 text-[#0d5990]" />
+															<span className="font-IranYekanBold text-right">زمان حرکت</span>
+														</div>
+													</div>
+													<div className="space-y-4">
+														{/* Time Range Selector */}
+														<div className="space-y-2">
+															<TimeRangeSelector
+																onTimeChange={(timeValue: number) => {
+																	handleTimeChange(timeValue.toString());
+																	handleTimeFilterChange(timeValue);
+																}}
+															/>
+														</div>
+													</div>
+												</div>
+											</div>
+											<DialogFooter className="justify-start">
+												<button className="px-4 py-2 bg-[#0d5990] text-white rounded-lg hover:bg-[#0a4a7a] font-IranYekanRegular">
+													اعمال فیلتر
+												</button>
+											</DialogFooter>
+										</DialogContent>
+									</Dialog>
+
+									{/* Company Filter - Direct CompaniesFilter Component */}
+									<div className="relative">
+										<button
+											data-company-button
+											onClick={() => {
+												// Toggle the company filter visibility
+												const companyFilter = document.getElementById('company-filter');
+												if (companyFilter) {
+													companyFilter.style.display = companyFilter.style.display === 'none' ? 'block' : 'none';
+												}
+											}}
+											className={`flex items-center gap-2 px-4 py-2 border rounded-lg font-IranYekanRegular transition-colors ${(company && company !== '0') || (selectedCompanies && selectedCompanies.length > 0 && !selectedCompanies.includes('0'))
+												? 'bg-[#0d5990] text-white border-[#0d5990] hover:bg-[#0a4a7a]'
+												: 'bg-white border-gray-300 hover:bg-gray-50'
+												}`}
+										>
+											<Icon icon="mdi:office-building" className="w-4 h-4" />
+											شرکت
+											{(company && company !== '0') || (selectedCompanies && selectedCompanies.length > 0 && !selectedCompanies.includes('0')) ? (
+												<div className="w-2 h-2 bg-white rounded-full"></div>
+											) : null}
+										</button>
+
+										{/* CompaniesFilter Component - Hidden by default */}
+										<div
+											id="company-filter"
+											className="absolute top-full right-0 mt-2 w-80 z-50 hidden"
+											style={{ display: 'none' }}
+										>
+											<CompaniesFilter
+												isPending={isPending}
+												setCompany={setCompany}
+												company={company}
+												selectedCompanies={selectedCompanies}
+												setSelectedCompanies={setSelectedCompanies}
+											/>
+										</div>
+									</div>
+
+									{/* Amenities Filter Dialog */}
+									<Dialog open={openDialogs.amenities} onOpenChange={(open) => setOpenDialogs(prev => ({ ...prev, amenities: open }))}>
+										<DialogTrigger asChild>
+											<button className={`flex items-center gap-2 px-4 py-2 border rounded-lg font-IranYekanRegular transition-colors ${isMonitor || isBed || isCharger
+												? 'bg-[#0d5990] text-white border-[#0d5990] hover:bg-[#0a4a7a]'
+												: 'bg-white border-gray-300 hover:bg-gray-50'
+												}`}>
+												<Icon icon="mdi:star-outline" className="w-4 h-4" />
+												امکانات
+												{(isMonitor || isBed || isCharger) && <div className="w-2 h-2 bg-white rounded-full"></div>}
+											</button>
+										</DialogTrigger>
+										<DialogContent className="max-w-md" dir="rtl" showCloseButton={false}>
+											<DialogHeader className="text-right relative">
+												<button
+													onClick={() => setOpenDialogs(prev => ({ ...prev, amenities: false }))}
+													className="absolute left-0 top-0 p-2 hover:bg-gray-100 rounded-full"
+												>
+													<Icon icon="mdi:close" className="w-5 h-5" />
+												</button>
+												<DialogTitle className="font-IranYekanBold text-right pr-10">فیلتر امکانات</DialogTitle>
+											</DialogHeader>
+											<div className="py-4">
+												<div className="bg-white border border-secondary rounded-md p-4 space-y-4 font-IranYekanRegular">
+													{/* Monitor Checkbox */}
+													<div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+														<div className="flex items-center gap-3">
+															<Icon icon="mdi:monitor" className="w-5 h-5 text-[#0d5990]" />
+															<span className="font-IranYekanRegular text-right">مانیتور</span>
+														</div>
+														<input
+															type="checkbox"
+															checked={isMonitor}
+															onChange={(e) => setIsMonitor(e.target.checked)}
+															className="w-4 h-4 text-[#0d5990] rounded focus:ring-[#0d5990]"
+														/>
+													</div>
+
+													{/* Bed Checkbox */}
+													<div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+														<div className="flex items-center gap-3">
+															<Icon icon="mdi:bed" className="w-5 h-5 text-[#0d5990]" />
+															<span className="font-IranYekanRegular text-right">تخت خواب</span>
+														</div>
+														<input
+															type="checkbox"
+															checked={isBed}
+															onChange={(e) => setIsBed(e.target.checked)}
+															className="w-4 h-4 text-[#0d5990] rounded focus:ring-[#0d5990]"
+														/>
+													</div>
+
+													{/* Charger Checkbox */}
+													<div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+														<div className="flex items-center gap-3">
+															<Icon icon="mdi:power-plug" className="w-5 h-5 text-[#0d5990]" />
+															<span className="font-IranYekanRegular text-right">شارژر</span>
+														</div>
+														<input
+															type="checkbox"
+															checked={isCharger}
+															onChange={(e) => setIsCharger(e.target.checked)}
+															className="w-4 h-4 text-[#0d5990] rounded focus:ring-[#0d5990]"
+														/>
+													</div>
+												</div>
+											</div>
+											<DialogFooter className="justify-start">
+												<button className="px-4 py-2 bg-[#0d5990] text-white rounded-lg hover:bg-[#0a4a7a] font-IranYekanRegular">
+													اعمال فیلتر
+												</button>
+											</DialogFooter>
+										</DialogContent>
+									</Dialog>
+
+									{/* Price Filter Dialog */}
+									<Dialog open={openDialogs.price} onOpenChange={(open) => setOpenDialogs(prev => ({ ...prev, price: open }))}>
+										<DialogTrigger asChild>
+											<button className={`flex items-center gap-2 px-4 py-2 border rounded-lg font-IranYekanRegular transition-colors ${maxFullPrice && maxFullPrice !== "20000000"
+												? 'bg-[#0d5990] text-white border-[#0d5990] hover:bg-[#0a4a7a]'
+												: 'bg-white border-gray-300 hover:bg-gray-50'
+												}`}>
+												<Icon icon="mdi:currency-usd" className="w-4 h-4" />
+												قیمت
+												{maxFullPrice && maxFullPrice !== "20000000" && <div className="w-2 h-2 bg-white rounded-full"></div>}
+											</button>
+										</DialogTrigger>
+										<DialogContent className="max-w-md" dir="rtl" showCloseButton={false}>
+											<DialogHeader className="text-right relative">
+												<button
+													onClick={() => setOpenDialogs(prev => ({ ...prev, price: false }))}
+													className="absolute left-0 top-0 p-2 hover:bg-gray-100 rounded-full"
+												>
+													<Icon icon="mdi:close" className="w-5 h-5" />
+												</button>
+												<DialogTitle className="font-IranYekanBold text-right pr-10">فیلتر قیمت</DialogTitle>
+											</DialogHeader>
+											<div className="py-4">
+												<div className="space-y-4">
+													<div>
+														<label className="block text-sm font-IranYekanRegular mb-2 text-right">حداکثر قیمت</label>
+														<input
+															type="range"
+															min="0"
+															max="50000000"
+															step="1000000"
+															value={maxFullPrice}
+															onChange={(e) => setMaxFullPrice(e.target.value)}
+															className="w-full"
+														/>
+														<div className="text-sm text-gray-600 font-IranYekanRegular mt-1 text-right">
+															{numberConvertor(maxFullPrice)} تومان
+														</div>
+													</div>
+												</div>
+											</div>
+											<DialogFooter className="justify-start">
+												<button className="px-4 py-2 bg-[#0d5990] text-white rounded-lg hover:bg-[#0a4a7a] font-IranYekanRegular">
+													اعمال فیلتر
+												</button>
+											</DialogFooter>
+										</DialogContent>
+									</Dialog>
+
+									{/* Other Filters Dialog */}
+									<Dialog open={openDialogs.other} onOpenChange={(open) => setOpenDialogs(prev => ({ ...prev, other: open }))}>
+										<DialogTrigger asChild>
+											<button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-IranYekanRegular">
+												<Icon icon="mdi:filter" className="w-4 h-4" />
+												سایر فیلترها
+											</button>
+										</DialogTrigger>
+										<DialogContent className="max-w-md" dir="rtl" showCloseButton={false}>
+											<DialogHeader className="text-right relative">
+												<button
+													onClick={() => setOpenDialogs(prev => ({ ...prev, other: false }))}
+													className="absolute left-0 top-0 p-2 hover:bg-gray-100 rounded-full"
+												>
+													<Icon icon="mdi:close" className="w-5 h-5" />
+												</button>
+												<DialogTitle className="font-IranYekanBold text-right pr-10">سایر فیلترها</DialogTitle>
+											</DialogHeader>
+											<div className="py-4">
+												<div className="bg-white border border-secondary rounded-md p-4 space-y-4 font-IranYekanRegular">
+													{/* Direct Route Checkbox */}
+													<div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+														<div className="flex items-center gap-3">
+															<Icon icon="mdi:route" className="w-5 h-5 text-[#0d5990]" />
+															<span className="font-IranYekanRegular text-right">فقط مسیر مستقیم</span>
+														</div>
+														<input
+															type="checkbox"
+															id="direct-only"
+															className="w-4 h-4 text-[#0d5990] rounded focus:ring-[#0d5990]"
+														/>
+													</div>
+
+													{/* Available Services Checkbox */}
+													<div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+														<div className="flex items-center gap-3">
+															<Icon icon="mdi:check-circle" className="w-5 h-5 text-[#0d5990]" />
+															<span className="font-IranYekanRegular text-right">فقط سرویس‌های موجود</span>
+														</div>
+														<input
+															type="checkbox"
+															id="available-only"
+															className="w-4 h-4 text-[#0d5990] rounded focus:ring-[#0d5990]"
+														/>
+													</div>
+												</div>
+											</div>
+											<DialogFooter className="justify-start">
+												<button className="px-4 py-2 bg-[#0d5990] text-white rounded-lg hover:bg-[#0a4a7a] font-IranYekanRegular">
+													اعمال فیلتر
+												</button>
+											</DialogFooter>
+										</DialogContent>
+									</Dialog>
+									<button
+										onClick={handleResetFilter}
+										className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 font-IranYekanRegular transition-colors"
+									>
+										<Icon icon="mdi:close-circle-outline" className="w-4 h-4" />
+										حذف همه فیلترها
+									</button>
+								</div>
+
+
+								<div dir="rtl" className="direction-rtl gap-x-4 items-center hidden lg:flex">
+									<div dir="rtl" className="text-black font-IranYekanRegular">نمایش بر اساس :</div>
+									{isPending ? (
+										<Skeleton
+											count={3}
+											width={107}
+											height={24}
+											containerClassName="flex items-center gap-x-4"
+											style={{ borderRadius: "25px" }}
+										/>
+									) : (
+										<div className="flex items-center gap-x-4">
+											<FilterBadge
+												title="ارزان ترین"
+												active={sort === "cheap"}
+												onClick={() => handleSortClick("cheap")}
+											/>
+											<FilterBadge
+												title="گران ترین"
+												active={sort === "expensive"}
+												onClick={() => handleSortClick("expensive")}
+											/>
+										</div>
+									)}
+								</div>
+
+								<div className="flex flex-col gap-y-2 sm:gap-y-7 pb-6 sm:pt-5 xs:pt-5">
+									{isPending || initialLoading ? (
+										<>
+											<MainCard />
+											<MainCard />
+											<MainCard />
+											<MainCard />
+										</>
+									) : (
+										currentPageData.length > 0 ? (
+											<>
+												{currentPageData.map((item: SrvRequestResItem, index: number) => (
+													<MainCard
+														data={item}
+														key={`main-card-${index}`}
+														isPending={isPending}
+													/>
+												))}
+
+												{Math.ceil(allServices.length / itemsPerPage) > 1 && (
+													<Pagination
+														pageNumber={currentPage}
+														setPageNumber={(page: number) => handleClientPagination(page)}
+														totalPages={Math.ceil(allServices.length / itemsPerPage)}
+													/>
+												)}
+											</>
+										) : (
+											<NoData />
+										)
+									)}
 								</div>
 							</div>
-							<DrawerFooter>
-								<button
-									className="flex flex-row items-center justify-center bg-[#E8F2FC] border border-gray-300 text-[#0D5990] 
+						</div>
+
+						<div className="fixed bottom-0 w-full rounded-t-md bg-[#2E5F9D] p-4 flex items-center justify-between lg:hidden">
+							<Drawer>
+								<DrawerTrigger>
+									<div className="bg-white text-[#0D5990] cursor-pointer rounded-md sm:rounded-xl px-6 sm:px-12 py-2  font-IranYekanRegular hover:bg-[#0D5990] hover:text-white">
+										نمایش فیلتر ها
+									</div>
+								</DrawerTrigger>
+								<DrawerContent>
+									<DrawerHeader>
+										<DrawerTitle className="font-IranYekanBold">
+											{" "}
+											انتخاب فیلترهای جستجو
+										</DrawerTitle>
+									</DrawerHeader>
+									<div className="flex flex-col gap-y-4 w-full px-4">
+										<RightCard
+											onTimeFilterChange={(timeValue: number) => {
+												// Update drawer state with the time filter value
+												if (drawerFilters.timeFilter !== timeValue) { // Prevent unnecessary updates
+													setDrawerFilters((prev) => ({
+														...prev,
+														timeFilter: timeValue
+													}));
+												}
+											}}
+											setValue={(value: SetStateAction<string>) =>
+												setDrawerFilters((prev) => ({
+													...prev,
+													time: typeof value === "function" ? value(prev.time) : value,
+												}))
+											}
+											isPending={isPending}
+											title="زمان حرکت"
+										/>
+										<CompaniesFilter
+											isPending={isPending}
+											setCompany={(value) => {
+												// Update both drawer state and main state immediately
+												setDrawerFilters((prev) => ({
+													...prev,
+													company: String(value ?? ""),
+												}));
+												setCompany(value);
+											}}
+											company={drawerFilters.company}
+											selectedCompanies={selectedCompanies}
+											setSelectedCompanies={setSelectedCompanies}
+										/>
+										<RightCheckCard
+											isPending={isPending}
+											isMonitor={drawerFilters.isMonitor}
+											setIsMonitor={(value: SetStateAction<boolean>) =>
+												setDrawerFilters((prev) => ({
+													...prev,
+													isMonitor: typeof value === "function" ? value(prev.isMonitor) : value,
+												}))
+											}
+											isBed={drawerFilters.isBed}
+											setIsBed={(value: SetStateAction<boolean>) =>
+												setDrawerFilters((prev) => ({
+													...prev,
+													isBed: typeof value === "function" ? value(prev.isBed) : value,
+												}))
+											}
+											isCharger={drawerFilters.isCharger}
+											setIsCharger={(value: SetStateAction<boolean>) =>
+												setDrawerFilters((prev) => ({
+													...prev,
+													isCharger: typeof value === "function" ? value(prev.isCharger) : value,
+												}))
+											}
+										/>
+									</div>
+									<div className="w-full flex flex-row items-center justify-center mt-3 px-4">
+										<div
+											className="flex flex-row items-center justify-center bg-white border border-gray-300 text-[#0D5990] 
             rounded-md sm:rounded-xl xs:w-full xs:h-[40px] sm:px-12 py-2 font-IranYekanRegular
             hover:bg-[#0D5990] hover:text-white cursor-pointer"
-									onClick={handleDrawerSubmit}
-								>
-									{" "}
-									اعمال فیلترها
-								</button>
-								<DrawerClose>
-									<div className="bg-white text-[#0D5990] rounded-md sm:rounded-xl px-6 sm:px-12 py-2 font-IranYekanRegular hover:bg-[#0D5990] hover:text-white border border-gray-300">
-										بستن صفحه
+											onClick={() =>
+												setDrawerFilters({
+													time: "30",
+													company: "",
+													isBed: false,
+													isMonitor: false,
+													isCharger: false,
+													timeFilter: 0
+												})
+											}
+										>
+											حدف تمامی فیلتر ها
+										</div>
 									</div>
-								</DrawerClose>
-							</DrawerFooter>
-						</DrawerContent>
-					</Drawer>
-					<Drawer>
-						<DrawerTrigger>
-							<div
-								className="bg-white text-[#0D5990] rounded-md sm:rounded-xl px-6 sm:px-12 py-2  font-IranYekanRegular hover:bg-[#0D5990] hover:text-white"
-							>
-								ترتیب نمایش
-							</div>
-						</DrawerTrigger>
-						<DrawerContent>
-							<DrawerHeader>
-								<DrawerTitle className="font-IranYekanRegular">
-									ترتیب نمایش اطلاعات
-								</DrawerTitle>
-							</DrawerHeader>
-							<div className="flex flex-col gap-4 px-4">
-								<button
-									className={`w-full py-3 px-4 rounded-md font-IranYekanRegular transition-all duration-300 ${sort === "cheap"
-										? "bg-[#0D5990] text-white"
-										: "bg-white text-[#0D5990] border border-gray-300 hover:bg-[#E8F2FC]"
-										}`}
-									onClick={() => handleSortClick("cheap")}
-								>
-									ارزان‌ترین
-								</button>
-								<button
-									className={`w-full py-3 px-4 rounded-md font-IranYekanRegular transition-all duration-300 ${sort === "expensive"
-										? "bg-[#0D5990] text-white"
-										: "bg-white text-[#0D5990] border border-gray-300 hover:bg-[#E8F2FC]"
-										}`}
-									onClick={() => handleSortClick("expensive")}
-								>
-									گران‌ترین
-								</button>
-							</div>
-							<DrawerFooter>
-								<DrawerClose>
-									<div className="bg-white text-[#0D5990] rounded-md sm:rounded-xl px-6 sm:px-12 py-2  font-IranYekanRegular hover:bg-[#0D5990] hover:text-white">
-										بستن
+									<DrawerFooter>
+										<button
+											className="flex flex-row items-center justify-center bg-[#E8F2FC] border border-gray-300 text-[#0D5990] 
+            rounded-md sm:rounded-xl xs:w-full xs:h-[40px] sm:px-12 py-2 font-IranYekanRegular
+            hover:bg-[#0D5990] hover:text-white cursor-pointer"
+											onClick={handleDrawerSubmit}
+										>
+											{" "}
+											اعمال فیلترها
+										</button>
+										<DrawerClose>
+											<div className="bg-white text-[#0D5990] rounded-md sm:rounded-xl px-6 sm:px-12 py-2 font-IranYekanRegular hover:bg-[#0D5990] hover:text-white border border-gray-300">
+												بستن صفحه
+											</div>
+										</DrawerClose>
+									</DrawerFooter>
+								</DrawerContent>
+							</Drawer>
+							<Drawer>
+								<DrawerTrigger>
+									<div
+										className="bg-white text-[#0D5990] rounded-md sm:rounded-xl px-6 sm:px-12 py-2  font-IranYekanRegular hover:bg-[#0D5990] hover:text-white"
+									>
+										ترتیب نمایش
 									</div>
-								</DrawerClose>
-							</DrawerFooter>
-						</DrawerContent>
-					</Drawer>
-				</div>
+								</DrawerTrigger>
+								<DrawerContent>
+									<DrawerHeader>
+										<DrawerTitle className="font-IranYekanRegular">
+											ترتیب نمایش اطلاعات
+										</DrawerTitle>
+									</DrawerHeader>
+									<div className="flex flex-col gap-4 px-4">
+										<button
+											className={`w-full py-3 px-4 rounded-md font-IranYekanRegular transition-all duration-300 ${sort === "cheap"
+												? "bg-[#0D5990] text-white"
+												: "bg-white text-[#0D5990] border border-gray-300 hover:bg-[#E8F2FC]"
+												}`}
+											onClick={() => handleSortClick("cheap")}
+										>
+											ارزان‌ترین
+										</button>
+										<button
+											className={`w-full py-3 px-4 rounded-md font-IranYekanRegular transition-all duration-300 ${sort === "expensive"
+												? "bg-[#0D5990] text-white"
+												: "bg-white text-[#0D5990] border border-gray-300 hover:bg-[#E8F2FC]"
+												}`}
+											onClick={() => handleSortClick("expensive")}
+										>
+											گران‌ترین
+										</button>
+									</div>
+									<DrawerFooter>
+										<DrawerClose>
+											<div className="bg-white text-[#0D5990] rounded-md sm:rounded-xl px-6 sm:px-12 py-2  font-IranYekanRegular hover:bg-[#0D5990] hover:text-white">
+												بستن
+											</div>
+										</DrawerClose>
+									</DrawerFooter>
+								</DrawerContent>
+							</Drawer>
+						</div>
+					</>
+				) : (
+					<div className="flex items-center justify-center min-h-[400px] px-4">
+						<div className="text-center">
+							<Icon icon="mdi:search" className="w-24 h-24 mx-auto text-gray-300 mb-4" />
+							<h2 className="text-2xl font-IranYekanBold text-gray-600 mb-2">
+								برای شروع جستجو، مبدا و مقصد را انتخاب کنید
+							</h2>
+							<p className="text-gray-500 font-IranYekanRegular">
+								پس از انتخاب شهرهای مبدا و مقصد، روی دکمه جستجو کلیک کنید
+							</p>
+						</div>
+					</div>
+				)}
 			</div>
 		</>
 	);

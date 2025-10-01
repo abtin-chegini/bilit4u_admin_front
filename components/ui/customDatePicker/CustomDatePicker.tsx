@@ -65,7 +65,7 @@ const CustomDatePicker: React.FC = () => {
 	// Keep local state in sync with store changes
 	useEffect(() => {
 		if (!hasInitialized) return;
-		
+
 		if (travelDate && isDateValid()) {
 			const momentDate = getTravelDateAsMoment();
 			if (momentDate) {
@@ -144,7 +144,7 @@ const CustomDatePicker: React.FC = () => {
 			<PopoverTrigger asChild>
 				<Button
 					variant="outline"
-					className="w-[250px] h-[48px] bg-white justify-end text-center hover:bg-gray-100 font-IranYekanRegular"
+					className="w-full h-[48px] bg-white justify-end text-center hover:bg-gray-100 font-IranYekanRegular"
 				>
 					<div className="flex items-center gap-2 text-black">
 						{selectedDate && travelDate && isDateValid()
