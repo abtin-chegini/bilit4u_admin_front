@@ -218,11 +218,10 @@ const DestinationSearchBox: React.FC = () => {
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="xl:w-[220px] xs:w-[250px] sm:w-[400px] xl:h-[48px] xs:h-[48px] lg:w-[200px] lg:h-[37px] md:w-[124px] md:h-[31px]   justify-end text-center"
+          className="xl:w-[220px] xs:w-[250px] sm:w-[400px] xl:h-[48px] xs:h-[48px] lg:w-[200px] lg:h-[37px] md:w-[124px] md:h-[31px] justify-center text-center gap-2"
         >
-          <p className="font-IranYekanRegular">{value}</p>
-
-          <Icon icon="proicons:location" width="24" height="24" />
+          <Icon icon="proicons:location" width="20" height="20" className="flex-shrink-0" />
+          <p className="font-IranYekanRegular flex-1 text-center">{value}</p>
         </Button>
       </PopoverTrigger>
       <PopoverContent

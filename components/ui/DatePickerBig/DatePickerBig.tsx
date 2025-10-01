@@ -318,25 +318,25 @@ function DatePickerBig() {
 				<PopoverTrigger asChild>
 					<Button
 						variant="outline"
-						className="xs:w-[250px] sm:w-[400px] md:w-[124px] lg:w-[175px] xl:w-[220px] xs:h-[48px] sm:h-[48px] md:h-[31px] lg:h-[37px] xl:h-[48px] bg-white justify-end text-center hover:bg-gray-100"
+						className="xs:w-[250px] sm:w-[400px] md:w-[124px] lg:w-[175px] xl:w-[220px] xs:h-[48px] sm:h-[48px] md:h-[31px] lg:h-[37px] xl:h-[48px] bg-white justify-center text-center hover:bg-gray-100 gap-2"
 					>
-						<div className="text-black">
+						<Icon icon="solar:calendar-linear" className="w-5 h-5 flex-shrink-0" />
+						<div className="text-black flex-1 text-center">
 							{selectedDate && travelDate && isDateValid()
 								? <p className="font-IranYekanRegular xs:text-xs sm:text-sm md:text-xs lg:text-sm xl:text-base">{toPersianNumbers(selectedDate.format("jYYYY/jMM/jDD"))}</p>
 								: <p className="font-IranYekanRegular xs:text-xs sm:text-sm md:text-xs lg:text-sm xl:text-base">زمان سفر</p>}
 						</div>
-						<Icon icon="solar:calendar-linear" className="xs:w-5 xs:h-5 sm:w-6 sm:h-6 md:w-5 md:h-5 lg:w-5 lg:h-5 xl:w-6 xl:h-6" />
 					</Button>
 				</PopoverTrigger>
 
 				<PopoverContent
-					className="w-auto p-0 overflow-hidden xs:max-w-[280px] xs:h-[340px] sm:max-w-[400px] sm:h-[460px] md:max-w-[300px] md:h-[420px] lg:max-w-[450px] lg:h-[398px] xl:max-w-[580px] xl:h-[428px] xs:ml-20 sm:ml-40 md:ml-60 lg:ml-64 xl:ml-64"
-					align="start"
+					className="w-auto p-0 overflow-hidden xs:max-w-[280px] xs:h-[340px] sm:max-w-[400px] sm:h-[460px] md:max-w-[300px] md:h-[420px] lg:max-w-[450px] lg:h-[398px] xl:max-w-[580px] xl:h-[428px]"
+					align="end"
 					alignOffset={0}
 					dir="rtl"
 					side="bottom"
 					sideOffset={5}
-					avoidCollisions={false}
+					avoidCollisions={true}
 					collisionPadding={{ top: 8, right: 8, bottom: 8, left: 8 }}
 					style={{ width: '100%' }}
 				>

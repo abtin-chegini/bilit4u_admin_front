@@ -147,6 +147,10 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 	const [isSearching, setIsSearching] = useState<boolean>(false);
 	const [isRotating, setIsRotating] = useState<boolean>(false);
 
+	// Store the searched cities separately (won't change when inputs swap)
+	const [searchedSourceCity, setSearchedSourceCity] = useState<string>("");
+	const [searchedDestCity, setSearchedDestCity] = useState<string>("");
+
 	// Get source and destination store functions
 	const {
 		sourceID,
@@ -271,11 +275,21 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 	};
 
 	const fetchData = (date: string, sortBy: string = "maxFullPrice") => {
-		// Use the fixed API payload as specified
+		// Use the actual city IDs from stores
+		const searchSourceCity = sourceID || SourceCity;
+		const searchDestCity = destinationID || DestinationCity;
+
+		console.log("Fetching data with:", {
+			sCityCode: searchSourceCity,
+			dCityCode: searchDestCity,
+			sDate: date,
+			reqtime: "1"
+		});
+
 		mutate(
 			{
-				sCityCode: SourceCity,
-				dCityCode: DestinationCity,
+				sCityCode: searchSourceCity,
+				dCityCode: searchDestCity,
 				sDate: date,
 				reqtime: "1",
 			},
@@ -287,9 +301,11 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 					setAllServices(allData);
 					setTotalItems(res.AllItems || 0);
 					setInitialLoading(false);
+					setIsSearching(false);
 				},
 				onError: () => {
 					setInitialLoading(false);
+					setIsSearching(false);
 				}
 			}
 		);
@@ -540,11 +556,15 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 		if (sourceID && destinationID) {
 			setIsSearching(true);
 			setShowSearchResults(true);
+			setInitialLoading(true); // Show loading animation
+
+			// Store the searched cities (won't change when inputs swap)
+			setSearchedSourceCity(sourceCity || "");
+			setSearchedDestCity(destinationCity || "");
+
 			// Trigger search with current selections from stores
 			const dateStr = travelDate || TravelDate;
 			fetchData(dateStr, sort);
-			// Reset searching state after a delay
-			setTimeout(() => setIsSearching(false), 1000);
 		}
 	};
 
@@ -618,8 +638,8 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 				<SearchMobileHeader
 					showBackButton={true}
 					showTitle={true}
-					sourceCity={getCityFarsiByID(SourceCity)}
-					destinationCity={getCityFarsiByID(DestinationCity)}
+					sourceCity={searchedSourceCity || getCityFarsiByID(SourceCity)}
+					destinationCity={searchedDestCity || getCityFarsiByID(DestinationCity)}
 					date={activeDate}
 					activeDate={activeDate}
 					handleDateChange={handleDateChange}
@@ -628,49 +648,52 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 			<div className="min-h-full w-full bg-[#FAFAFA] relative overflow-auto">
 				{/* Beautiful Search Header */}
 				<div className="w-full bg-gradient-to-r from-[#0d5990] to-[#0a4a7a] py-12 px-4 lg:px-16 shadow-lg">
-					<div className="max-w-6xl mx-auto">
+					<div className="max-w-7xl mx-auto">
 						<h1 className="text-white text-3xl font-IranYekanBold mb-8 text-center">
 							جستجوی بلیط اتوبوس
 						</h1>
-						<div className="bg-white rounded-2xl shadow-2xl p-6">
-							<div className="flex flex-col lg:flex-row items-end gap-3" dir="rtl">
+						<div className="bg-white rounded-2xl shadow-2xl p-8">
+							<div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr_1fr_auto] items-end gap-4" dir="rtl">
 								{/* Source City Input */}
-								<div className="flex-1 w-full">
+								<div className="w-full">
 									<label className="block text-sm font-IranYekanBold text-gray-700 mb-2 text-right">
 										مبدا
 									</label>
 									<SourceSearchBox />
 								</div>
 
-								{/* Swap Button */}
-								<div className="hidden lg:block">
+								{/* Swap Button - Centered between Source and Destination */}
+								<div className="hidden lg:flex items-center justify-center pb-1">
 									<button
 										onClick={handleSwitchCities}
 										className={`
 											w-[48px] h-[48px]
-											rounded-md bg-white border border-gray-200
-											hover:bg-gray-50 hover:border-gray-300
-											active:bg-gray-100
+											rounded-lg bg-gradient-to-br from-gray-50 to-gray-100
+											border-2 border-gray-200
+											hover:border-[#0d5990] hover:from-[#0d5990]/10 hover:to-[#0d5990]/5
+											active:scale-95
 											transition-all duration-200
 											flex items-center justify-center
-											shadow-sm hover:shadow-md
+											shadow-md hover:shadow-lg
 											${isRotating ? 'animate-spin' : ''}
-											disabled:opacity-50 disabled:cursor-not-allowed
+											disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200
+											group
 										`}
 										disabled={
 											!sourceCity || sourceCity === "شهر مبداء" ||
 											!destinationCity || destinationCity === "شهر مقصد"
 										}
+										title="جابه‌جایی مبدا و مقصد"
 									>
 										<Icon
 											icon="tabler:arrows-exchange-2"
-											className="w-5 h-5 text-gray-600"
+											className="w-6 h-6 text-gray-600 group-hover:text-[#0d5990] transition-colors duration-200"
 										/>
 									</button>
 								</div>
 
 								{/* Destination City Input */}
-								<div className="flex-1 w-full">
+								<div className="w-full">
 									<label className="block text-sm font-IranYekanBold text-gray-700 mb-2 text-right">
 										مقصد
 									</label>
@@ -678,33 +701,63 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 								</div>
 
 								{/* Date Input */}
-								<div className="flex-1 w-full">
+								<div className="w-full">
 									<label className="block text-sm font-IranYekanBold text-gray-700 mb-2 text-right">
 										تاریخ سفر
 									</label>
 									<DatePickerBig />
 								</div>
 
-								{/* Search Button */}
-								<div className="w-full lg:w-auto">
+								{/* Search Button - Same height as inputs */}
+								<div className="w-full lg:w-auto flex items-end">
 									<Button
 										onClick={handleSearch}
 										disabled={!sourceID || !destinationID || isSearching}
-										className="w-full lg:w-auto px-12 h-[48px] bg-[#0d5990] hover:bg-[#0a4a7a] text-white font-IranYekanBold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+										className="w-full lg:min-w-[185px] h-[48px] bg-[#0d5990] hover:bg-[#0a4a7a] text-white font-IranYekanBold text-base rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
 									>
 										{isSearching ? (
 											<>
-												<Icon icon="mdi:loading" className="w-6 h-6 ml-2 animate-spin" />
+												<Icon icon="mdi:loading" className="w-5 h-5 ml-2 animate-spin" />
 												در حال جستجو...
 											</>
 										) : (
 											<>
-												<Icon icon="mdi:magnify" className="w-6 h-6 ml-2" />
+												<Icon icon="mdi:magnify" className="w-5 h-5 ml-2" />
 												جستجو
 											</>
 										)}
 									</Button>
 								</div>
+							</div>
+
+							{/* Mobile Swap Button */}
+							<div className="lg:hidden mt-4 flex justify-center">
+								<button
+									onClick={handleSwitchCities}
+									className={`
+										px-6 py-2.5
+										rounded-lg bg-gradient-to-br from-gray-50 to-gray-100
+										border-2 border-gray-200
+										hover:border-[#0d5990] hover:from-[#0d5990]/10 hover:to-[#0d5990]/5
+										active:scale-95
+										transition-all duration-200
+										flex items-center gap-2
+										shadow-md hover:shadow-lg
+										${isRotating ? 'animate-spin' : ''}
+										disabled:opacity-40 disabled:cursor-not-allowed
+										font-IranYekanBold text-sm
+									`}
+									disabled={
+										!sourceCity || sourceCity === "شهر مبداء" ||
+										!destinationCity || destinationCity === "شهر مقصد"
+									}
+								>
+									<Icon
+										icon="tabler:arrows-exchange-2"
+										className="w-5 h-5 text-gray-600"
+									/>
+									<span className="text-gray-700">جابه‌جایی</span>
+								</button>
 							</div>
 						</div>
 					</div>
@@ -713,31 +766,44 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 				{/* Search Results - Only show if source and destination are selected */}
 				{showSearchResults && sourceID && destinationID ? (
 					<>
+						{/* Loading Overlay */}
+						{(isPending || initialLoading || isSearching) && (
+							<div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
+								<div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4">
+									<div className="w-16 h-16 border-4 border-[#0d5990] border-t-transparent rounded-full animate-spin"></div>
+									<p className="text-lg font-IranYekanBold text-gray-700">در حال جستجو...</p>
+									<p className="text-sm font-IranYekanRegular text-gray-500">لطفا صبر کنید</p>
+								</div>
+							</div>
+						)}
+
 						<TopComponent
 							isPending={isPending}
 							activeDate={activeDate}
 							setActiveDate={handleDateChange}
 						/>
-						{initialLoading && <LottiePreloader />}
 
 						<div
 							className={`mt-7 px-4 lg:px-16 ${isMobile ? 'pt-20' : ''}`}
 							id="main_div"
 						>
 							<div className="gap-y-7 flex flex-col">
-								{isPending ? (
-									<Skeleton
-										width={600}
-										height={24}
-										containerClassName="text-lg text-black direction-rtl hidden lg:block"
-										style={{ borderRadius: "25px" }}
-									/>
+								{isPending || initialLoading || isSearching ? (
+									<div className="hidden lg:flex gap-2 items-center">
+										<Skeleton
+											width={600}
+											height={24}
+											containerClassName="flex-1"
+											style={{ borderRadius: "25px" }}
+										/>
+										<div className="w-8 h-8 border-2 border-[#0d5990] border-t-transparent rounded-full animate-spin"></div>
+									</div>
 								) : (
 									<div dir="rtl" className="text-lg text-black direction-rtl hidden lg:block font-IranYekanRegular">
 										تعداد {numberConvertor(totalItems?.toString() ?? "")}{" "}
 										سرویس&nbsp; از&nbsp; &nbsp;
-										{getCityFarsiByID(SourceCity)}&nbsp; تا&nbsp; &nbsp;
-										{getCityFarsiByID(DestinationCity)} در تاریخ {activeDate} از
+										{searchedSourceCity || getCityFarsiByID(SourceCity)}&nbsp; تا&nbsp; &nbsp;
+										{searchedDestCity || getCityFarsiByID(DestinationCity)} در تاریخ {activeDate} از
 										ساعت ۰۰:۱۵ تا ساعت ۲۳:۵۹ یافت شد
 									</div>
 								)}
