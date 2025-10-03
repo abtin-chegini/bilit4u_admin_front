@@ -185,7 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		try {
 			console.log('🔐 [LOGIN] Starting login process...')
 			console.log('🔐 [LOGIN] Username:', username)
-			const baseUrl = 'http://localhost:5001/admin/api/v1/'
+			const baseUrl = 'https://api.bilit4u.com/admin/api/v1/'
 			console.log('🔐 [LOGIN] Backend API: ' + baseUrl + 'admin/loginwithchallenge')
 			console.log('🔐 [LOGIN] Timestamp:', new Date().toISOString())
 
@@ -335,7 +335,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const sendOtp = async () => {
 		try {
 			console.log('📤 [SEND OTP] Starting OTP send process...')
-			const baseUrl = 'http://localhost:5001/admin/api/v1/'
+			const baseUrl = 'https://api.bilit4u.com/admin/api/v1/'
 			console.log('📤 [SEND OTP] Backend API: ' + baseUrl + 'admin/sendotp')
 			console.log('📤 [SEND OTP] Timestamp:', new Date().toISOString())
 
@@ -396,7 +396,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			console.log('📱 [OTP] ===== STARTING OTP VERIFICATION =====')
 			console.log('📱 [OTP] OTP:', otp)
 			console.log('📱 [OTP] Timestamp:', new Date().toISOString())
-			const baseUrl = 'http://localhost:5001/admin/api/v1/'
+			const baseUrl = 'https://api.bilit4u.com/admin/api/v1/'
 			console.log('📱 [OTP] Backend API: ' + baseUrl + 'admin/loginwithotp')
 
 			const storedChallengeToken = challengeToken || localStorage.getItem('challenge_token')
