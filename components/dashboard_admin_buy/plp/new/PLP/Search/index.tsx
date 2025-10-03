@@ -168,7 +168,7 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 		value: destinationValue
 	} = useDestinationStore();
 
-	const { travelDate, isDateValid } = useTravelDateStore();
+	const { travelDate, isDateValid, setTravelDate } = useTravelDateStore();
 
 	const [isBed, setIsBed] = useState<boolean>(false);
 	const [isMonitor, setIsMonitor] = useState<boolean>(false);
@@ -180,7 +180,7 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 	const [openDialogs, setOpenDialogs] = useState<{ [key: string]: boolean }>({});
 
 	const [activeDate, setActiveDate] = useState<string>(
-		convertToPersianDate(TravelDate) ||
+		convertToPersianDate(travelDate || TravelDate) ||
 		new Date().toLocaleDateString("fa-IR")
 	);
 
@@ -240,6 +240,14 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 		setInitialLoading(true);
 		fetchData(TravelDate);
 	}, [TravelDate]);
+
+	// Sync activeDate with travelDate from store
+	useEffect(() => {
+		if (travelDate && isDateValid()) {
+			const persianDate = convertToPersianDate(travelDate);
+			setActiveDate(persianDate);
+		}
+	}, [travelDate, isDateValid]);
 
 	const handleTimeFilterChange = useCallback((timeValue: number) => {
 		if (timeValue !== timeFilter) {
@@ -509,6 +517,8 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 		const newTravelDate = convertToTravelDateFormat(newDate);
 
 		if (newTravelDate) {
+			// Update the store with the new date
+			setTravelDate(newTravelDate);
 			// Fetch data with the new date
 			fetchData(newTravelDate, sort === "cheap" ? "minFullPrice" : sort === "expensive" ? "maxFullPrice" : "");
 		}

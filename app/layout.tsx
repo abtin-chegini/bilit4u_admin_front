@@ -7,9 +7,9 @@ import QueryProvider from '@/components/providers/QueryProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.app',
+  title: 'bilit4u support dashboard',
+  description: 'support dashboard of bilit4u.com',
+  generator: 'bilit4u.com',
 }
 
 export default function RootLayout({

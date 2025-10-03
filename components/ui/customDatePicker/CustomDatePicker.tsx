@@ -102,7 +102,9 @@ const CustomDatePicker: React.FC = () => {
 		for (let i = 1; i <= daysInMonth; i++) {
 			const date = month.clone().jDate(i);
 			const isToday = date.isSame(jMoment().locale('fa'), 'day');
-			const isSelected = selectedDate ? date.isSame(selectedDate, 'day') : false;
+			// Improved selection logic - check both local state and store state
+			const isSelected = selectedDate ? date.isSame(selectedDate, 'day') :
+				(travelDate && isDateValid()) ? date.isSame(getTravelDateAsMoment(), 'day') : false;
 			const isPastDate = date.isBefore(jMoment().locale('fa'), 'day');
 			const isFriday = date.day() === 5;
 
@@ -147,7 +149,7 @@ const CustomDatePicker: React.FC = () => {
 					className="w-full h-[48px] bg-white justify-end text-center hover:bg-gray-100 font-IranYekanRegular"
 				>
 					<div className="flex items-center gap-2 text-black">
-						{selectedDate && travelDate && isDateValid()
+						{selectedDate && isDateValid()
 							? <span>{toPersianNumbers(selectedDate.format("jYYYY/jMM/jDD"))}</span>
 							: <span>زمان سفر</span>}
 					</div>

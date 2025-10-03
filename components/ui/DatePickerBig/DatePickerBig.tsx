@@ -168,7 +168,9 @@ function DatePickerBig() {
 		for (let i = 1; i <= daysInMonth; i++) {
 			const date = month.clone().jDate(i);
 			const isToday = date.isSame(jMoment().locale('fa'), 'day');
-			const isSelected = selectedDate ? date.isSame(selectedDate, 'day') : false;
+			// Improved selection logic - check both local state and store state
+			const isSelected = selectedDate ? date.isSame(selectedDate, 'day') :
+				(travelDate && isDateValid()) ? date.isSame(getTravelDateAsMoment(), 'day') : false;
 			const isPastDate = date.isBefore(jMoment().locale('fa'), 'day');
 			const isWeekend = isFriday(date);
 			const isDateHoliday = isHoliday(date);
@@ -322,7 +324,7 @@ function DatePickerBig() {
 					>
 						<Icon icon="solar:calendar-linear" className="w-5 h-5 flex-shrink-0" />
 						<div className="text-black flex-1 text-center">
-							{selectedDate && travelDate && isDateValid()
+							{selectedDate && isDateValid()
 								? <p className="font-IranYekanRegular xs:text-xs sm:text-sm md:text-xs lg:text-sm xl:text-base">{toPersianNumbers(selectedDate.format("jYYYY/jMM/jDD"))}</p>
 								: <p className="font-IranYekanRegular xs:text-xs sm:text-sm md:text-xs lg:text-sm xl:text-base">زمان سفر</p>}
 						</div>

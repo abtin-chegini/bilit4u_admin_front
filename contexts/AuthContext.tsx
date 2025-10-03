@@ -10,7 +10,11 @@ interface AuthContextType {
 	user: User | null
 	session: Session | null
 	loading: boolean
-	signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
+	needsOtp: boolean
+	challengeToken: string | null
+	signIn: (username: string, password: string) => Promise<{ error: AuthError | null; needsOtp?: boolean; challengeToken?: string }>
+	sendOtp: () => Promise<{ error: AuthError | null }>
+	verifyOtp: (otp: string) => Promise<{ error: AuthError | null }>
 	signOut: () => Promise<void>
 	validateTokenWithBackend: (token: string) => Promise<{ isValid: boolean; shouldRefresh: boolean; shouldLogout: boolean }>
 }
@@ -21,6 +25,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const [user, setUser] = useState<User | null>(null)
 	const [session, setSession] = useState<Session | null>(null)
 	const [loading, setLoading] = useState(true)
+	const [needsOtp, setNeedsOtp] = useState(false)
+	const [challengeToken, setChallengeToken] = useState<string | null>(null)
 
 	// Validate token with your backend
 	const validateTokenWithBackend = async (token: string): Promise<{ isValid: boolean; shouldRefresh: boolean; shouldLogout: boolean }> => {
@@ -175,69 +181,102 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	}
 
 	// Sign in function that uses your backend API for login
-	const signIn = async (email: string, password: string) => {
+	const signIn = async (username: string, password: string) => {
 		try {
 			console.log('🔐 [LOGIN] Starting login process...')
-			console.log('🔐 [LOGIN] Email:', email)
-			console.log('🔐 [LOGIN] Backend API: ' + API_BASE_URL + 'password/login')
+			console.log('🔐 [LOGIN] Username:', username)
+			const baseUrl = 'http://localhost:5001/admin/api/v1/'
+			console.log('🔐 [LOGIN] Backend API: ' + baseUrl + 'admin/loginwithchallenge')
 			console.log('🔐 [LOGIN] Timestamp:', new Date().toISOString())
 
-			// First, authenticate with your backend API
-			const response = await apiClient.post('password/login', {
-				email,
-				password
+			// First, authenticate with your backend API using the new endpoint
+			const response = await fetch(baseUrl + 'admin/loginwithchallenge', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					user: {
+						username,
+						password
+					}
+				})
 			})
+
+			if (!response.ok) {
+				// Get error details from backend response
+				let errorMessage = 'خطا در ورود. لطفا مجددا تلاش کنید.'
+				try {
+					const errorData = await response.json()
+					if (errorData.detail) {
+						errorMessage = errorData.detail
+					} else if (errorData.message) {
+						errorMessage = errorData.message
+					}
+				} catch (e) {
+					// If can't parse JSON, keep default message
+				}
+				const error: any = new Error(errorMessage)
+				error.status = response.status
+				throw error
+			}
+
+			const responseData = await response.json()
 
 			console.log('✅ [LOGIN] Backend response received!')
 			console.log('🔍 [LOGIN] ===== FULL LOGIN RESPONSE =====')
-			console.log('🔍 [LOGIN] Complete response:', JSON.stringify(response, null, 2))
+			console.log('🔍 [LOGIN] Complete response:', JSON.stringify(responseData, null, 2))
+			console.log('🔍 [LOGIN] Response type:', typeof responseData)
+			console.log('🔍 [LOGIN] Response keys:', Object.keys(responseData || {}))
 			console.log('🔍 [LOGIN] ================================')
 
-			// Log the JWT token fields from backend response
-			const backendData = response as any
-			console.log('🔍 [LOGIN] Looking for JWT token in backend response...')
-			console.log('🔍 [LOGIN] backendData.access_token:', backendData.access_token ? backendData.access_token.substring(0, 20) + '...' : 'NOT FOUND')
-			console.log('🔍 [LOGIN] backendData.token:', backendData.token ? backendData.token.substring(0, 20) + '...' : 'NOT FOUND')
-			console.log('🔍 [LOGIN] backendData.jwt:', backendData.jwt ? backendData.jwt.substring(0, 20) + '...' : 'NOT FOUND')
-			console.log('🔍 [LOGIN] backendData.accessToken:', backendData.accessToken ? backendData.accessToken.substring(0, 20) + '...' : 'NOT FOUND')
-			console.log('🔍 [LOGIN] backendData.jwtToken:', backendData.jwtToken ? backendData.jwtToken.substring(0, 20) + '...' : 'NOT FOUND')
-			console.log('🔍 [LOGIN] All backend response keys:', Object.keys(backendData))
+			const backendData = responseData as any
 
-			// Check each key-value pair to find JWT-like tokens
-			console.log('🔍 [LOGIN] ===== CHECKING ALL FIELDS FOR JWT TOKENS =====')
-			Object.entries(backendData).forEach(([key, value]) => {
-				if (value && typeof value === 'string' && value.length > 50) {
-					console.log(`🔍 [LOGIN] Field "${key}" contains long string (possibly JWT):`, value.substring(0, 20) + '...')
-				} else {
-					console.log(`🔍 [LOGIN] Field "${key}":`, value)
+			// Check for nested response structure
+			let actualData = backendData
+			if (backendData.data) {
+				console.log('🔍 [LOGIN] Found nested data structure, using responseData.data')
+				actualData = backendData.data
+			}
+
+			// Check if challenge token is returned (OTP required)
+			console.log('🔍 [LOGIN] Checking for challengeToken:', actualData.challengeToken)
+			if (actualData.challengeToken) {
+				console.log('📱 [LOGIN] Challenge token received - OTP required')
+
+				// Store the challenge token for OTP verification
+				const challengeTokenValue = actualData.challengeToken
+				setChallengeToken(challengeTokenValue)
+				localStorage.setItem('challenge_token', challengeTokenValue)
+				setNeedsOtp(true)
+				console.log('💾 [LOGIN] Challenge token stored for OTP verification')
+				return {
+					error: null,
+					needsOtp: true,
+					challengeToken: challengeTokenValue
 				}
-			})
-			console.log('🔍 [LOGIN] ==============================================')
+			}
 
-			if (response) {
-				// If backend authentication succeeds, create a session manually
-				const backendData = response
-
+			// If no challenge token, check for direct authentication
+			console.log('🔍 [LOGIN] Checking for direct token:', actualData.accessToken || actualData.token)
+			if (responseData && (actualData.accessToken || actualData.token)) {
 				// Create a mock user object
 				const mockUser = {
-					id: (backendData as any).user_id || '1',
-					email: email,
+					id: (actualData as any).user_id || '1',
+					email: username,
 					user_metadata: {},
 					app_metadata: {},
 					aud: 'authenticated',
 					created_at: new Date().toISOString(),
 				} as User
 
-				// Find the JWT token from various possible field names
-				const jwtToken = (backendData as any).token;
-
-				console.log('🔍 [LOGIN] Selected JWT token field:', jwtToken ? jwtToken.substring(0, 20) + '...' : 'NOT FOUND')
+				// Get the JWT token from response (support both accessToken and token)
+				const jwtToken = actualData.accessToken || actualData.token;
 
 				// Create a mock session with the actual JWT token from login response
 				const mockSession = {
 					access_token: jwtToken,
-					refresh_token: (backendData as any).refresh_token || (backendData as any).refreshToken,
-					// Let backend handle expiration - don't set expires_in or expires_at in frontend
+					refresh_token: actualData.refreshToken || actualData.refresh_token,
 					token_type: 'bearer',
 					user: mockUser,
 				} as Session
@@ -245,15 +284,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				// Ensure we have a valid JWT token
 				if (!mockSession.access_token) {
 					console.error('❌ [LOGIN] No valid JWT token received from backend!')
-					console.error('❌ [LOGIN] Backend response keys:', Object.keys(backendData))
-					console.error('❌ [LOGIN] Available fields:', Object.entries(backendData).map(([k, v]) => `${k}: ${typeof v}`))
 					return { error: { message: 'No JWT token received from backend' } as AuthError }
 				}
 
 				console.log('👤 [LOGIN] Created user object:', mockUser)
 				console.log('🎫 [LOGIN] Created session with access token:', mockSession.access_token ? mockSession.access_token.substring(0, 20) + '...' : 'NOT FOUND')
-				console.log('🎫 [LOGIN] Created session with refresh token:', mockSession.refresh_token ? mockSession.refresh_token.substring(0, 20) + '...' : 'NOT FOUND')
-				console.log('🎫 [LOGIN] Session expires at:', new Date((mockSession.expires_at || 0) * 1000).toISOString())
 
 				// Set the session manually
 				setSession(mockSession)
@@ -264,11 +299,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				console.log('💾 [LOGIN] Session stored in localStorage')
 
 				console.log('✅ [LOGIN] Login successful! User will be redirected to dashboard.')
-				return { error: null }
+				return { error: null, needsOtp: false }
 			}
 
 			// If we reach here, something went wrong
-			return { error: { message: 'Authentication failed' } as AuthError }
+			console.log('❌ [LOGIN] No challengeToken or accessToken/token found in response')
+			console.log('❌ [LOGIN] Available response keys:', Object.keys(actualData || {}))
+			console.log('❌ [LOGIN] Full response data:', actualData)
+			return { error: { message: 'Authentication failed - no accessToken or challengeToken received' } as AuthError }
 		} catch (error: any) {
 			console.error('❌ [LOGIN] Login failed:', error)
 			console.error('❌ [LOGIN] Error details:', {
@@ -276,9 +314,202 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				status: error.status,
 				data: error.data
 			})
+
+			// Use error message from backend or default message
+			let errorMessage = error.message || 'خطا در ورود. لطفا مجددا تلاش کنید.'
+
+			// Handle network errors
+			if (error.message === 'Failed to fetch') {
+				errorMessage = 'خطا در اتصال به سرور. لطفا اتصال اینترنت خود را بررسی کنید.'
+			}
+
 			return {
 				error: {
-					message: error.data?.message || error.message || 'خطا در ورود. لطفا مجددا تلاش کنید.'
+					message: errorMessage
+				} as AuthError
+			}
+		}
+	}
+
+	// Send OTP function
+	const sendOtp = async () => {
+		try {
+			console.log('📤 [SEND OTP] Starting OTP send process...')
+			const baseUrl = 'http://localhost:5001/admin/api/v1/'
+			console.log('📤 [SEND OTP] Backend API: ' + baseUrl + 'admin/sendotp')
+			console.log('📤 [SEND OTP] Timestamp:', new Date().toISOString())
+
+			const storedChallengeToken = challengeToken || localStorage.getItem('challenge_token')
+			if (!storedChallengeToken) {
+				console.error('❌ [SEND OTP] No challenge token found')
+				return { error: { message: 'No challenge token found' } as AuthError }
+			}
+
+			// Send OTP request to backend
+			const response = await fetch(baseUrl + 'admin/sendotp', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					user: {
+						challengeToken: storedChallengeToken
+					}
+				})
+			})
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`)
+			}
+
+			const responseData = await response.json()
+
+			console.log('✅ [SEND OTP] Backend response received!')
+			console.log('🔍 [SEND OTP] ===== FULL SEND OTP RESPONSE =====')
+			console.log('🔍 [SEND OTP] Complete response:', JSON.stringify(responseData, null, 2))
+			console.log('🔍 [SEND OTP] ================================')
+
+			if (responseData) {
+				console.log('✅ [SEND OTP] OTP sent successfully!')
+				return { error: null }
+			}
+
+			return { error: { message: 'Failed to send OTP' } as AuthError }
+		} catch (error: any) {
+			console.error('❌ [SEND OTP] Send OTP failed:', error)
+			console.error('❌ [SEND OTP] Error details:', {
+				message: error.message,
+				status: error.status,
+				data: error.data
+			})
+			return {
+				error: {
+					message: error.data?.message || error.message || 'خطا در ارسال کد. لطفا مجددا تلاش کنید.'
+				} as AuthError
+			}
+		}
+	}
+
+	// Verify OTP function
+	const verifyOtp = async (otp: string) => {
+		try {
+			console.log('📱 [OTP] ===== STARTING OTP VERIFICATION =====')
+			console.log('📱 [OTP] OTP:', otp)
+			console.log('📱 [OTP] Timestamp:', new Date().toISOString())
+			const baseUrl = 'http://localhost:5001/admin/api/v1/'
+			console.log('📱 [OTP] Backend API: ' + baseUrl + 'admin/loginwithotp')
+
+			const storedChallengeToken = challengeToken || localStorage.getItem('challenge_token')
+			if (!storedChallengeToken) {
+				console.error('❌ [OTP] No challenge token found for OTP verification')
+				return { error: { message: 'No challenge token found' } as AuthError }
+			}
+
+			// Verify OTP with backend
+			const response = await fetch(baseUrl + 'admin/loginwithotp', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					user: {
+						challengeToken: storedChallengeToken,
+						otp: otp
+					}
+				})
+			})
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`)
+			}
+
+			const responseData = await response.json()
+
+			console.log('✅ [OTP] Backend response received!')
+			console.log('🔍 [OTP] ===== FULL OTP RESPONSE =====')
+			console.log('🔍 [OTP] Complete response:', JSON.stringify(responseData, null, 2))
+			console.log('🔍 [OTP] ================================')
+
+			const backendData = responseData as any
+
+			// Check for nested response structure in OTP verification too
+			let actualOtpData = backendData
+			if (backendData.data) {
+				console.log('🔍 [OTP] Found nested data structure, using responseData.data')
+				actualOtpData = backendData.data
+			}
+
+			console.log('🔍 [OTP] Checking for accessToken/token:', actualOtpData.accessToken || actualOtpData.token)
+			if (responseData && (actualOtpData.accessToken || actualOtpData.token)) {
+				// Create a mock user object
+				const mockUser = {
+					id: (actualOtpData as any).user_id || '1',
+					email: (actualOtpData as any).email || 'admin@bilit4u.com',
+					user_metadata: {},
+					app_metadata: {},
+					aud: 'authenticated',
+					created_at: new Date().toISOString(),
+				} as User
+
+				// Get the JWT token from response (support both accessToken and token)
+				const jwtToken = actualOtpData.accessToken || actualOtpData.token;
+
+				// Create a mock session with the actual JWT token from OTP response
+				const mockSession = {
+					access_token: jwtToken,
+					refresh_token: actualOtpData.refreshToken || actualOtpData.refresh_token,
+					token_type: 'bearer',
+					user: mockUser,
+				} as Session
+
+				// Ensure we have a valid JWT token
+				if (!mockSession.access_token) {
+					console.error('❌ [OTP] No valid JWT token received from backend!')
+					return { error: { message: 'No JWT token received from backend' } as AuthError }
+				}
+
+				console.log('👤 [OTP] Created user object:', mockUser)
+				console.log('🎫 [OTP] Created session with access token:', mockSession.access_token ? mockSession.access_token.substring(0, 20) + '...' : 'NOT FOUND')
+
+				// Set the session manually
+				setSession(mockSession)
+				setUser(mockUser)
+				setNeedsOtp(false)
+				setChallengeToken(null)
+
+				// Store session in localStorage for persistence
+				localStorage.setItem('auth_session', JSON.stringify(mockSession))
+				localStorage.removeItem('challenge_token')
+				console.log('💾 [OTP] Session stored in localStorage')
+
+				// Validate the token immediately after OTP verification
+				console.log('🔍 [OTP] Validating token immediately after OTP verification...')
+				const validationResult = await validateTokenWithBackend(jwtToken)
+
+				if (!validationResult.isValid) {
+					console.error('❌ [OTP] Token validation failed after OTP verification')
+					return { error: { message: 'Token validation failed' } as AuthError }
+				}
+
+				console.log('✅ [OTP] Token validated successfully! User will be redirected to dashboard.')
+				return { error: null }
+			}
+
+			// If we reach here, OTP verification failed
+			console.log('❌ [OTP] No accessToken or token found in OTP response')
+			console.log('❌ [OTP] Available response keys:', Object.keys(actualOtpData || {}))
+			console.log('❌ [OTP] Full OTP response data:', actualOtpData)
+			return { error: { message: 'OTP verification failed - no accessToken received' } as AuthError }
+		} catch (error: any) {
+			console.error('❌ [OTP] OTP verification failed:', error)
+			console.error('❌ [OTP] Error details:', {
+				message: error.message,
+				status: error.status,
+				data: error.data
+			})
+			return {
+				error: {
+					message: error.data?.message || error.message || 'خطا در تایید کد. لطفا مجددا تلاش کنید.'
 				} as AuthError
 			}
 		}
@@ -288,8 +519,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		// Clear the session and user
 		setSession(null)
 		setUser(null)
+		setNeedsOtp(false)
+		setChallengeToken(null)
 		// Clear from localStorage
 		localStorage.removeItem('auth_session')
+		localStorage.removeItem('challenge_token')
 	}
 
 	useEffect(() => {
@@ -373,7 +607,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		user,
 		session,
 		loading,
+		needsOtp,
+		challengeToken,
 		signIn,
+		sendOtp,
+		verifyOtp,
 		signOut,
 		validateTokenWithBackend,
 	}
