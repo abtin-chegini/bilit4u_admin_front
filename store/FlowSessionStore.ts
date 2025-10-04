@@ -34,6 +34,12 @@ export interface FlowSessionState {
 	updateSession: (sessionData: Partial<StoredSession>) => Promise<void>;
 	loadSession: (sessionId: string) => Promise<void>;
 	setError: (error: string | null) => void;
+
+	// Initialize flow with ticket data
+	initializeFlowWithTicket: (ticketData: any) => Promise<string>;
+
+	// Get current flow session ID
+	getFlowSession: () => string | null;
 }
 
 export const useFlowSessionStore = create<FlowSessionState>()((set, get) => ({
@@ -353,5 +359,94 @@ export const useFlowSessionStore = create<FlowSessionState>()((set, get) => ({
 	// Set error
 	setError: (error: string | null) => {
 		set({ error });
+	},
+
+	// Initialize flow with ticket data
+	initializeFlowWithTicket: async (ticketData: any) => {
+		const sessionId = `ticket_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+		set({
+			sessionId,
+			isLoading: true,
+			error: null
+		});
+
+		try {
+			// Create new session with ticket data
+			const newSession: StoredSession = {
+				sessionId,
+				userId: '',
+				createdAt: Date.now(),
+				lastUpdated: Date.now(),
+				data: {
+					ticketData,
+					flowType: 'ticket_purchase'
+				}
+			};
+
+			// Initialize flow steps for ticket purchase
+			const flowSteps: Record<string, FlowStepData> = {
+				'seat-selection': {
+					stepId: 'seat-selection',
+					stepName: 'انتخاب صندلی',
+					data: null,
+					completed: false,
+					timestamp: Date.now()
+				},
+				'passenger-details': {
+					stepId: 'passenger-details',
+					stepName: 'مشخصات مسافران',
+					data: null,
+					completed: false,
+					timestamp: Date.now()
+				},
+				'confirmation': {
+					stepId: 'confirmation',
+					stepName: 'تأیید اطلاعات',
+					data: null,
+					completed: false,
+					timestamp: Date.now()
+				},
+				'payment': {
+					stepId: 'payment',
+					stepName: 'پرداخت',
+					data: null,
+					completed: false,
+					timestamp: Date.now()
+				},
+				'ticket-issue': {
+					stepId: 'ticket-issue',
+					stepName: 'صدور بلیط',
+					data: null,
+					completed: false,
+					timestamp: Date.now()
+				}
+			};
+
+			set({
+				currentSession: newSession,
+				currentStep: 'seat-selection',
+				flowSteps,
+				isFlowActive: true,
+				isLoading: false
+			});
+
+			console.log('✅ Flow initialized with ticket data:', sessionId);
+			return sessionId;
+
+		} catch (error) {
+			console.error('❌ Error initializing flow with ticket:', error);
+			set({
+				error: 'Failed to initialize ticket flow',
+				isLoading: false
+			});
+			throw error;
+		}
+	},
+
+	// Get current flow session ID
+	getFlowSession: () => {
+		const state = get();
+		return state.sessionId;
 	}
 }));

@@ -1,4 +1,4 @@
-import { useSession } from 'next-auth/react';
+import { User, Session, AuthError } from '@supabase/supabase-js'
 
 // Types for secure session management
 export interface SecureSession {
@@ -296,15 +296,30 @@ export class SecureSessionManager {
 // Create singleton instance
 export const secureSessionManager = SecureSessionManager.getInstance();
 
-// React hook for secure session management
+// React hook for secure session management - updated to use Supabase types
 export function useSecureSession() {
-	const { data: session, status } = useSession();
+	// Get session from localStorage with proper Supabase types
+	const getAuthSession = (): Session | null => {
+		if (typeof window === 'undefined') return null;
+		try {
+			const sessionData = localStorage.getItem('auth_session');
+			return sessionData ? JSON.parse(sessionData) as Session : null;
+		} catch (error) {
+			console.error('Failed to get auth session:', error);
+			return null;
+		}
+	};
+
+	const session = getAuthSession();
+	const isAuthenticated = !!session?.access_token;
+	const isLoading = false; // We can determine this from session state
 
 	const initializeSecureSession = async () => {
-		if (session?.user?.accessToken && session?.user?.refreshToken) {
+		if (session?.access_token && session?.refresh_token) {
 			return await secureSessionManager.initializeSession(
-				session.user.accessToken,
-				session.user.refreshToken
+				session.user?.id,
+				session.access_token,
+				session.refresh_token
 			);
 		}
 		return null;
@@ -333,7 +348,8 @@ export function useSecureSession() {
 		refreshTokens,
 		invalidateSession,
 		getSessionInfo,
-		isAuthenticated: status === 'authenticated',
-		isLoading: status === 'loading'
+		isAuthenticated,
+		isLoading,
+		session // Expose the Supabase session for components that need it
 	};
 }

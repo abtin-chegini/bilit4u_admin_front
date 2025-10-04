@@ -252,4 +252,34 @@
   .font-IranYekanMedium {
     font-family: var(--font-iran-yekan-medium);
   }
+
+  /* Seat label positioning styles */
+  .seat-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 10px;
+    font-family: var(--font-iran-yekan-bold);
+    color: #cddff7;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .seat-label.mobile {
+    font-size: 8px;
+  }
+
+  .seat-label.desktop {
+    font-size: 10px;
+  }
+
+  /* Specific color overrides for different seat states */
+  .seat-label.default {
+    color: black;
+  }
+
+  .seat-label.reserved-male {
+    color: #5488b3;
+  }
 }

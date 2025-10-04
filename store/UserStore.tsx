@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export interface UserProfile {
-	userId: string;
+	userId?: string;
 	firstName?: string;
 	lastName?: string;
 	phoneNumber?: string;
