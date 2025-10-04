@@ -5,6 +5,7 @@ import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { API_BASE_URL } from '@/lib/config'
 import { apiClient } from '@/lib/api'
+import { useUserStore } from '@/store/UserStore'
 
 interface AuthContextType {
 	user: User | null
@@ -17,6 +18,7 @@ interface AuthContextType {
 	verifyOtp: (otp: string) => Promise<{ error: AuthError | null }>
 	signOut: () => Promise<void>
 	validateTokenWithBackend: (token: string) => Promise<{ isValid: boolean; shouldRefresh: boolean; shouldLogout: boolean }>
+	fetchUserProfile: (token: string) => Promise<{ error: AuthError | null; profile?: any }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -298,6 +300,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				localStorage.setItem('auth_session', JSON.stringify(mockSession))
 				console.log('💾 [LOGIN] Session stored in localStorage')
 
+				// Fetch user profile and store in Zustand
+				try {
+					console.log('👤 [LOGIN] Fetching user profile after successful login...')
+					const { error: profileError } = await fetchUserProfile(jwtToken)
+					if (profileError) {
+						console.warn('⚠️ [LOGIN] Profile fetch failed, but login successful:', profileError.message)
+					} else {
+						console.log('✅ [LOGIN] User profile fetched and stored successfully')
+					}
+				} catch (profileErr) {
+					console.warn('⚠️ [LOGIN] Profile fetch error, but login successful:', profileErr)
+				}
+
 				console.log('✅ [LOGIN] Login successful! User will be redirected to dashboard.')
 				return { error: null, needsOtp: false }
 			}
@@ -491,6 +506,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 					return { error: { message: 'Token validation failed' } as AuthError }
 				}
 
+				// Fetch user profile and store in Zustand
+				try {
+					console.log('👤 [OTP] Fetching user profile after successful OTP verification...')
+					const { error: profileError } = await fetchUserProfile(jwtToken)
+					if (profileError) {
+						console.warn('⚠️ [OTP] Profile fetch failed, but OTP verification successful:', profileError.message)
+					} else {
+						console.log('✅ [OTP] User profile fetched and stored successfully')
+					}
+				} catch (profileErr) {
+					console.warn('⚠️ [OTP] Profile fetch error, but OTP verification successful:', profileErr)
+				}
+
 				console.log('✅ [OTP] Token validated successfully! User will be redirected to dashboard.')
 				return { error: null }
 			}
@@ -510,6 +538,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			return {
 				error: {
 					message: error.data?.message || error.message || 'خطا در تایید کد. لطفا مجددا تلاش کنید.'
+				} as AuthError
+			}
+		}
+	}
+
+	// Fetch user profile from backend
+	const fetchUserProfile = async (token: string): Promise<{ error: AuthError | null; profile?: any }> => {
+		try {
+			console.log('👤 [PROFILE] Fetching user profile...')
+			console.log('👤 [PROFILE] API Endpoint: http://localhost:5001/admin/api/v1/admin/profile')
+			console.log('👤 [PROFILE] Token:', token.substring(0, 20) + '...')
+
+			const response = await fetch('http://localhost:5001/admin/api/v1/admin/profile', {
+				method: 'GET',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`
+				}
+			})
+
+			if (!response.ok) {
+				let errorMessage = 'خطا در دریافت اطلاعات کاربر'
+				try {
+					const errorData = await response.json()
+					if (errorData.detail) {
+						errorMessage = errorData.detail
+					} else if (errorData.message) {
+						errorMessage = errorData.message
+					}
+				} catch (e) {
+					// Keep default error message
+				}
+				const error: any = new Error(errorMessage)
+				error.status = response.status
+				throw error
+			}
+
+			const profileData = await response.json()
+			console.log('✅ [PROFILE] Profile data received:', profileData)
+
+			// Store profile in Zustand store
+			const { setUser } = useUserStore.getState()
+			setUser({
+				userId: profileData.userId || profileData.id || '',
+				firstName: profileData.firstName || profileData.first_name || profileData.name || '',
+				lastName: profileData.lastName || profileData.last_name || '',
+				email: profileData.email || '',
+				phoneNumber: profileData.phoneNumber || profileData.phone_number || '',
+				profileData: profileData
+			})
+
+			console.log('💾 [PROFILE] Profile stored in Zustand store')
+
+			return { error: null, profile: profileData }
+		} catch (error: any) {
+			console.error('❌ [PROFILE] Fetch profile failed:', error)
+			console.error('❌ [PROFILE] Error details:', {
+				message: error.message,
+				status: error.status,
+				data: error.data
+			})
+
+			// Use error message from backend or default message
+			let errorMessage = error.message || 'خطا در دریافت اطلاعات کاربر'
+
+			// Handle network errors
+			if (error.message === 'Failed to fetch') {
+				errorMessage = 'خطا در اتصال به سرور. لطفا اتصال اینترنت خود را بررسی کنید.'
+			}
+
+			return {
+				error: {
+					message: errorMessage
 				} as AuthError
 			}
 		}
@@ -614,6 +715,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		verifyOtp,
 		signOut,
 		validateTokenWithBackend,
+		fetchUserProfile,
 	}
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

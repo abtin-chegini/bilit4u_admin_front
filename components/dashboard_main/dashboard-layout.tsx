@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
+import { useUserStore } from "@/store/UserStore"
 import {
   X,
   CreditCard,
@@ -11,6 +12,10 @@ import {
   Search,
   FileText,
   Menu,
+  User,
+  Settings,
+  ChevronDown,
+  LogOut,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import SearchComponent from "@/components/dashboard_admin_buy/plp/new/PLP/Search"
@@ -23,8 +28,28 @@ const menuItems = [
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeSection, setActiveSection] = useState("payments")
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const { signOut, user } = useAuth()
+  const { user: profileUser } = useUserStore()
   const router = useRouter()
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setProfileDropdownOpen(false)
+      }
+    }
+
+    if (profileDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [profileDropdownOpen])
 
   const handleLogout = async () => {
     await signOut()
@@ -35,36 +60,65 @@ export default function DashboardLayout() {
     <div className="min-h-screen bg-gray-50 " >
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm">
-            <Search className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="sm">
-            <FileText className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="sm">
-            <Bell className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-2">
+        {/* Profile Dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <Button
+            variant="ghost"
+            onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+            className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50"
+          >
             <div className="w-8 h-8 bg-[#0d5990] rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-bold">B</span>
+              <User className="h-4 w-4 text-white" />
             </div>
-            <span className="font-IranYekanBold text-[#0d5990]">Bilit4U</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50 font-IranYekanBold"
-            >
-              خروج
-            </Button>
-          </div>
+            <span className="text-sm font-iran-yekan-bold text-gray-700">
+              {profileUser?.email || "user@example.com"}
+            </span>
+            <ChevronDown className="h-4 w-4 text-gray-500" />
+          </Button>
+
+          {/* Dropdown Menu */}
+          {profileDropdownOpen && (
+            <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+              <div className="py-1">
+                <button
+                  onClick={() => {
+                    setProfileDropdownOpen(false)
+                    // Handle settings click
+                  }}
+                  className="flex items-center justify-end gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 font-iran-yekan"
+                >
+                  <Settings className="h-4 w-4" />
+                  تنظیمات
+                </button>
+                <button
+                  onClick={() => {
+                    setProfileDropdownOpen(false)
+                    // Handle notifications click
+                  }}
+                  className="flex items-center justify-end gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 font-iran-yekan"
+                >
+                  <Bell className="h-4 w-4" />
+                  اعلان ها
+                </button>
+                <hr className="my-1 border-gray-200" />
+                <button
+                  onClick={() => {
+                    setProfileDropdownOpen(false)
+                    handleLogout()
+                  }}
+                  className="flex items-center justify-end gap-3 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-iran-yekan"
+                >
+                  <LogOut className="h-4 w-4" />
+                  خروج
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm text-gray-600 font-IranYekanRegular">
-            <span>نام ادمین پشتیبانی</span>
-            <span>مدیر</span>
+          <div className="flex items-center gap-2 text-xl text-gray-600 font-iran-yekan-bold">
+            <span>{profileUser?.firstName || profileUser?.profileData?.name || "نام ادمین پشتیبانی"}</span>
           </div>
           <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2">
             {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
