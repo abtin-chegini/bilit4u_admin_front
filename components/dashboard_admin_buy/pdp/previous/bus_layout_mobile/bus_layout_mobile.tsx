@@ -70,6 +70,8 @@ interface MobileBusLayoutProps {
 	readOnly?: boolean;
 	noBorder?: boolean;
 	forceReadOnly?: boolean;
+	token?: string; // Token for seat map fetching
+	ticketId?: string; // Ticket ID for seat map fetching
 }
 
 export const MobileBusLayout: React.FC<MobileBusLayoutProps> = ({
@@ -80,7 +82,9 @@ export const MobileBusLayout: React.FC<MobileBusLayoutProps> = ({
 	selectedSeats: externalSelectedSeats,
 	readOnly = false,
 	forceReadOnly = false,
-	noBorder = false
+	noBorder = false,
+	token: propToken,
+	ticketId: propTicketId
 }) => {
 	// State for seats and error management
 	const [seats, setSeats] = useState<SeatDetail[][]>([]);
@@ -92,8 +96,15 @@ export const MobileBusLayout: React.FC<MobileBusLayoutProps> = ({
 
 	// Helper function to get parameters from store
 	const getTicketParams = useCallback(() => {
-		// First try to get from Zustand store
+		// First try to get from props (highest priority)
+		if (propToken && propTicketId) {
+			console.log('🔍 MobileBusLayout - Using props:', { token: propToken, ticketId: propTicketId });
+			return { ticketId: propTicketId, token: propToken };
+		}
+
+		// Then try to get from Zustand store
 		if (storedTicketId && storedToken) {
+			console.log('🔍 MobileBusLayout - Using store:', { token: storedToken, ticketId: storedTicketId });
 			return { ticketId: storedTicketId, token: storedToken };
 		}
 
@@ -135,7 +146,7 @@ export const MobileBusLayout: React.FC<MobileBusLayoutProps> = ({
 		}
 
 		return { ticketId: null, token: null };
-	}, [storedTicketId, storedToken]);
+	}, [propToken, propTicketId, storedTicketId, storedToken]);
 
 
 

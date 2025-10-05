@@ -27,7 +27,6 @@ const formatBirthDateParts = (storedDate: string): { year: string, month: string
 			day: storedDate.substring(6, 8)
 		};
 	} catch (error) {
-		console.error("Error parsing birth date:", error, storedDate);
 		return { year: '', month: '', day: '' };
 	}
 };
@@ -110,10 +109,10 @@ interface PassengerFormProps {
 	seatId: number;
 	seatNo?: string | number;
 	gender: "female" | "male";
-	name: string;
-	family: string;
-	nationalId: string;
-	phone: string;
+	fName?: string;
+	lName?: string;
+	nationalCode?: string;
+	phoneNumber?: string;
 	onRemove: (seatId: number) => void;
 	onChange: (seatId: number, field: string, value: string) => void;
 	isLastPassenger: boolean;
@@ -123,10 +122,10 @@ interface PassengerFormProps {
 	// New prop to handle individual seat's previous passenger selection
 	onPrevPassengerClick?: () => void;
 	validationErrors?: {
-		name?: string;
-		family?: string;
-		nationalId?: string;
-		phone?: string;
+		fName?: string;
+		lName?: string;
+		nationalCode?: string;
+		phoneNumber?: string;
 	};
 }
 
@@ -134,10 +133,10 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 	seatId,
 	seatNo,
 	gender,
-	name,
-	family,
-	nationalId,
-	phone,
+	fName,
+	lName,
+	nationalCode,
+	phoneNumber,
 	onRemove,
 	onChange,
 	onCheckboxChange,
@@ -147,6 +146,10 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 	onPrevPassengerClick,
 	validationErrors,
 }) => {
+	// Component mounted
+	useEffect(() => {
+		// Component initialization logic here if needed
+	}, []); // Empty dependency array means this runs only on mount
 	// Local state to track gender selection for UI consistency
 	const [localGender, setLocalGender] = useState<"male" | "female">(gender);
 
@@ -164,9 +167,9 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 				const monthSelect = document.getElementById(`month-${seatId}`) as HTMLSelectElement;
 				const yearSelect = document.getElementById(`year-${seatId}`) as HTMLSelectElement;
 
-				if (phone && phone.trim()) {
+				if (phoneNumber && phoneNumber.trim()) {
 					// Extract date parts
-					const parts = formatBirthDateParts(phone);
+					const parts = formatBirthDateParts(phoneNumber);
 
 					// Set values directly on the DOM elements
 					if (daySelect && parts.day) daySelect.value = parts.day;
@@ -179,23 +182,27 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 					if (yearSelect) yearSelect.value = '';
 				}
 			} catch (err) {
-				console.error("Error setting date values:", err);
+				// Error handling
 			}
 		}, 0);
 
 		return () => clearTimeout(timer);
-	}, [phone, seatId]);
+	}, [phoneNumber, seatId]);
 	// Keep local state in sync with props
 	useEffect(() => {
 		setLocalGender(gender);
 	}, [gender]);
+
+	// Force re-render when props change
+	useEffect(() => {
+		// Props change handling
+	}, [seatId, fName, lName, nationalCode, phoneNumber, gender]);
 
 
 	// Handle passenger removal
 	const handleRemove = (e: React.MouseEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
-		console.log('PassengerForm: Removing passenger for seat', seatId);
 		onRemove(seatId);
 	};
 
@@ -211,17 +218,14 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 	// Handle date changes with better error handling
 	// Update your handleDateChange function to be more robust
 	const handleDateChange = (part: 'year' | 'month' | 'day', value: string) => {
-		console.log(`Changing ${part} for seat ${seatId} to ${value}`);
-
 		// Use empty strings as defaults (not undefined) for missing parts
 		let currentParts = { day: '', month: '', year: '' };
 
 		// Only try to parse existing phone if it's a valid string
-		if (phone && phone.trim()) {
+		if (phoneNumber && phoneNumber.trim()) {
 			try {
-				currentParts = formatBirthDateParts(phone);
+				currentParts = formatBirthDateParts(phoneNumber);
 			} catch (e) {
-				console.error("Error parsing existing date:", e);
 				// Keep default empty strings if parsing fails
 			}
 		}
@@ -237,8 +241,6 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 			currentParts.month,
 			currentParts.day
 		);
-
-		console.log(`New formatted date: ${formattedDate}`);
 
 		// Always update the parent component, even if empty
 		onChange(seatId, "phone", formattedDate);
@@ -490,7 +492,7 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 							type="text"
 							placeholder="نام"
 							className={`border ${nameError ? 'border-red-500' : 'border-[#D9D9D9]'} px-3 py-2 rounded-md w-full font-IranYekanRegular`}
-							value={name}
+							value={fName || ''}
 							onChange={(e) => handleNameChange(e.target.value)}
 							maxLength={14}
 							autoComplete="name"
@@ -522,7 +524,7 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 							type="text"
 							placeholder="نام خانوادگی"
 							className={`border ${familyError ? 'border-red-500' : 'border-[#D9D9D9]'} px-3 py-2 rounded-md w-full font-IranYekanRegular`}
-							value={family}
+							value={lName || ''}
 							onChange={(e) => handleFamilyChange(e.target.value)}
 							maxLength={14}
 							autoComplete="family-name"
@@ -553,8 +555,8 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 						<input
 							type="text"
 							placeholder="کد ملی"
-							className={`border ${nationalIdError || validationErrors?.nationalId ? 'border-red-500' : 'border-[#D9D9D9]'} px-3 py-2 rounded-md w-full font-IranYekanRegular`}
-							value={nationalId}
+							className={`border ${nationalIdError || validationErrors?.nationalCode ? 'border-red-500' : 'border-[#D9D9D9]'} px-3 py-2 rounded-md w-full font-IranYekanRegular`}
+							value={nationalCode || ''}
 							onChange={(e) => handleNationalIdChange(e.target.value)}
 							maxLength={10}
 							inputMode="numeric"
@@ -590,14 +592,14 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 						)}
 
 						{/* Display duplicate national ID error from validation errors prop */}
-						{!nationalIdError && validationErrors?.nationalId && (
+						{!nationalIdError && validationErrors?.nationalCode && (
 							<div className="mt-1 rounded-md">
 								<div className="flex items-start gap-1.5 bg-amber-50 p-1.5 border border-amber-200 rounded-md">
 									<svg className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 										<path d="M12 9V11M12 15H12.01M5.07183 19H18.9282C20.4678 19 21.4301 17.3333 20.6603 16L13.7321 4C12.9623 2.66667 11.0378 2.66667 10.268 4L3.33978 16C2.56998 17.3333 3.53219 19 5.07183 19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
 									</svg>
 									<span className="text-[11px] text-amber-800 font-IranYekanRegular">
-										{validationErrors.nationalId}
+										{validationErrors.nationalCode}
 									</span>
 								</div>
 							</div>
@@ -616,7 +618,6 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 								onChange={(e) => {
 									// Direct manipulation without state
 									const selectedDay = e.target.value;
-									console.log(`Selected day: ${selectedDay}`);
 									const currentMonth = (document.getElementById(`month-${seatId}`) as HTMLSelectElement)?.value || '';
 									const currentYear = (document.getElementById(`year-${seatId}`) as HTMLSelectElement)?.value || '';
 									const newDate = `${currentYear}${currentMonth}${selectedDay.padStart(2, '0')}`;
@@ -644,7 +645,6 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 								onChange={(e) => {
 									// Direct manipulation without state
 									const selectedMonth = e.target.value;
-									console.log(`Selected month: ${selectedMonth}`);
 									const currentDay = (document.getElementById(`day-${seatId}`) as HTMLSelectElement)?.value || '';
 									const currentYear = (document.getElementById(`year-${seatId}`) as HTMLSelectElement)?.value || '';
 									const newDate = `${currentYear}${selectedMonth}${currentDay}`;
@@ -676,7 +676,6 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 								onChange={(e) => {
 									// Direct manipulation without state
 									const selectedYear = e.target.value;
-									console.log(`Selected year: ${selectedYear}`);
 									const currentDay = (document.getElementById(`day-${seatId}`) as HTMLSelectElement)?.value || '';
 									const currentMonth = (document.getElementById(`month-${seatId}`) as HTMLSelectElement)?.value || '';
 									const newDate = `${selectedYear}${currentMonth}${currentDay}`;
@@ -718,6 +717,6 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 				</div>
 			)}
 		</div>
-		
+
 	);
 }

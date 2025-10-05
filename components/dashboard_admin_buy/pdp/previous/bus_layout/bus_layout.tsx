@@ -69,8 +69,8 @@ interface BusLayoutProps {
 	readOnly?: boolean;
 	forceReadOnly?: boolean; // New prop to strictly enforce readonly
 	noBorder?: boolean; // New prop to control border visibility
-
-
+	token?: string; // Token for seat map fetching
+	ticketId?: string; // Ticket ID for seat map fetching
 }
 
 interface SpaceConfig {
@@ -86,8 +86,9 @@ export const BusLayout: React.FC<BusLayoutProps> = ({
 	selectedSeats: externalSelectedSeats,
 	readOnly = false,
 	noBorder = false, // Default to showing the border
-
-	forceReadOnly = false // Default to false
+	forceReadOnly = false, // Default to false
+	token: propToken,
+	ticketId: propTicketId
 }) => {
 
 	// State for seats and error management
@@ -109,10 +110,17 @@ export const BusLayout: React.FC<BusLayoutProps> = ({
 	const session = getAuthSession();
 	const dataFetchedRef = useRef(false);
 
-	// Helper function to get parameters from store
+	// Helper function to get parameters from props, store, or URL
 	const getTicketParams = useCallback(() => {
-		// First try to get from Zustand store
+		// First try to get from props (highest priority)
+		if (propToken && propTicketId) {
+			console.log('🔍 BusLayout - Using props:', { token: propToken, ticketId: propTicketId });
+			return { ticketId: propTicketId, token: propToken };
+		}
+
+		// Then try to get from Zustand store
 		if (storedTicketId && storedToken) {
+			console.log('🔍 BusLayout - Using store:', { token: storedToken, ticketId: storedTicketId });
 			return { ticketId: storedTicketId, token: storedToken };
 		}
 
@@ -154,7 +162,7 @@ export const BusLayout: React.FC<BusLayoutProps> = ({
 		}
 
 		return { ticketId: null, token: null };
-	}, [storedTicketId, storedToken]);
+	}, [propToken, propTicketId, storedTicketId, storedToken]);
 
 
 

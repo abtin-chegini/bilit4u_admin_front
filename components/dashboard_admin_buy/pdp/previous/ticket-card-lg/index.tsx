@@ -112,6 +112,20 @@ const TicketCardLg: React.FC<TicketCardLgProps> = ({ ticketDetails, orderData, i
         hasDesCityCode: !!ticketDetails?.DesCityCode
       }
     });
+
+    // Detailed departure date debugging
+    console.log('📅 TicketCardLg - Departure Date Debug:', {
+      departDateRaw: ticketDetails?.DepartDate,
+      departDateType: typeof ticketDetails?.DepartDate,
+      departDateLength: ticketDetails?.DepartDate?.length,
+      departDateValue: ticketDetails?.DepartDate === '' ? 'EMPTY STRING' : ticketDetails?.DepartDate === null ? 'NULL' : ticketDetails?.DepartDate === undefined ? 'UNDEFINED' : ticketDetails?.DepartDate,
+      departTimeRaw: ticketDetails?.DepartTime,
+      departTimeType: typeof ticketDetails?.DepartTime,
+      departTimeValue: ticketDetails?.DepartTime === '' ? 'EMPTY STRING' : ticketDetails?.DepartTime === null ? 'NULL' : ticketDetails?.DepartTime === undefined ? 'UNDEFINED' : ticketDetails?.DepartTime
+    });
+
+    // Show all ticket details for debugging
+    console.log('📋 TicketCardLg - Complete Ticket Details:', JSON.stringify(ticketDetails, null, 2));
   }, [ticketDetails]);
 
   // Handle ticket download
@@ -196,29 +210,29 @@ const TicketCardLg: React.FC<TicketCardLgProps> = ({ ticketDetails, orderData, i
     }
   };
 
-  // Fixed Persian date parsing function for format like ۱۴۰۴/۰۴/۱۰
+  // Fixed Persian date parsing function for format like 20/07/1404 (DD/MM/YYYY)
   const parsePersianDate = (persianDate: string) => {
     try {
       // Convert Persian digits to English digits first
       const englishDate = toEnglishDigits(persianDate);
 
-      // Split the date - it's in YYYY/MM/DD format
+      // Split the date - it's in DD/MM/YYYY format
       const parts = englishDate.split('/');
       if (parts.length !== 3) {
-        throw new Error('Invalid date format');
+        return moment();
       }
 
-      const [year, month, day] = parts.map(Number);
+      const [day, month, year] = parts.map(Number);
 
-      // Validate the values
-      if (year < 1300 || year > 1500) {
-        throw new Error(`Invalid Jalali year: ${year}`);
+      // Validate the values - be more lenient with validation
+      if (isNaN(year) || year < 1300 || year > 1500) {
+        return moment();
       }
-      if (month < 1 || month > 12) {
-        throw new Error(`Invalid Jalali month: ${month}`);
+      if (isNaN(month) || month < 1 || month > 12) {
+        return moment();
       }
-      if (day < 1 || day > 31) {
-        throw new Error(`Invalid Jalali day: ${day}`);
+      if (isNaN(day) || day < 1 || day > 31) {
+        return moment();
       }
 
       // Create jalali moment from Persian date
@@ -226,26 +240,49 @@ const TicketCardLg: React.FC<TicketCardLgProps> = ({ ticketDetails, orderData, i
 
       return jMoment;
     } catch (error) {
-      // console.error('Error parsing Persian date:', error, 'Input:', persianDate);
       return moment();
     }
   };
 
-  // Format Persian date to readable format (input format: YYYY/MM/DD)
+  // Format Persian date to readable format (input format: DD/MM/YYYY)
   const formatPersianDateToReadable = (persianDate: string | undefined) => {
-    if (!persianDate) return 'نامشخص';
+    console.log('🔧 formatPersianDateToReadable called with:', {
+      input: persianDate,
+      type: typeof persianDate,
+      isFalsy: !persianDate
+    });
+
+    if (!persianDate) {
+      console.log('❌ formatPersianDateToReadable: No persianDate provided, returning "نامشخص"');
+      return 'نامشخص';
+    }
 
     try {
       // Convert Persian digits to English first
       const englishDate = toEnglishDigits(persianDate);
+      console.log('🔧 formatPersianDateToReadable: After toEnglishDigits:', englishDate);
 
-      // Split the date - it's in YYYY/MM/DD format
+      // Split the date - it's in DD/MM/YYYY format
       const parts = englishDate.split('/');
+      console.log('🔧 formatPersianDateToReadable: After split:', parts);
+
       if (parts.length !== 3) {
-        throw new Error('Invalid date format');
+        return 'نامشخص';
       }
 
-      const [year, month, day] = parts.map(Number);
+      const [day, month, year] = parts.map(Number);
+      console.log('🔧 formatPersianDateToReadable: Parsed numbers:', { day, month, year });
+
+      // Validate the values - be more lenient with validation
+      if (isNaN(year) || year < 1300 || year > 1500) {
+        return 'نامشخص';
+      }
+      if (isNaN(month) || month < 1 || month > 12) {
+        return 'نامشخص';
+      }
+      if (isNaN(day) || day < 1 || day > 31) {
+        return 'نامشخص';
+      }
 
       // Persian month names
       const persianMonths = [
@@ -257,11 +294,18 @@ const TicketCardLg: React.FC<TicketCardLgProps> = ({ ticketDetails, orderData, i
       const persianDayStr = numberConvertor(day.toString());
       const persianMonthName = persianMonths[month - 1];
 
+      // Correct format: Day Month Year (e.g., "۲۰ مهر ۱۴۰۴")
       const result = `${persianDayStr} ${persianMonthName} ${persianYearStr}`;
+
+      console.log('✅ formatPersianDateToReadable: Successfully formatted:', {
+        persianYearStr,
+        persianMonthName,
+        persianDayStr,
+        result
+      });
 
       return result;
     } catch (error) {
-      // console.error('Error formatting Persian date:', error);
       return 'نامشخص';
     }
   };
@@ -344,11 +388,11 @@ const TicketCardLg: React.FC<TicketCardLgProps> = ({ ticketDetails, orderData, i
       const persianDayStr = numberConvertor(arrivalDay.toString());
       const persianMonthName = persianMonths[arrivalMonth - 1];
 
+      // Correct format: Day Month Year (e.g., "۱۳ مهر ۱۴۰۴")
       const result = `${persianDayStr} ${persianMonthName} ${persianYearStr}`;
 
       return result;
     } catch (error) {
-      // console.error('Error calculating arrival date:', error);
       return 'نامشخص';
     }
   };
@@ -368,6 +412,17 @@ const TicketCardLg: React.FC<TicketCardLgProps> = ({ ticketDetails, orderData, i
     originalDepartDate: ticketDetails?.DepartDate,
     originalDepartTime: ticketDetails?.DepartTime,
     routeDuration: routeInfo.duration
+  });
+
+  // Debug departure date formatting step by step
+  console.log('🔍 TicketCardLg - Departure Date Formatting Debug:', {
+    inputDepartDate: ticketDetails?.DepartDate,
+    isDepartDateEmpty: !ticketDetails?.DepartDate,
+    isDepartDateUndefined: ticketDetails?.DepartDate === undefined,
+    isDepartDateNull: ticketDetails?.DepartDate === null,
+    isDepartDateEmptyString: ticketDetails?.DepartDate === '',
+    formattedResult: departureDate,
+    functionCalled: 'formatPersianDateToReadable'
   });
 
   // Log that we're ready to use real ticketDetails

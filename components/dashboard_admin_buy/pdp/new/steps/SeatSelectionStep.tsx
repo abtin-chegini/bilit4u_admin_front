@@ -1,6 +1,7 @@
 "use client";
 
 import React, { forwardRef, useImperativeHandle, useRef } from "react";
+import { useParams } from 'next/navigation';
 import { BusLayout } from "@/components/dashboard_admin_buy/pdp/previous/bus_layout/bus_layout";
 import { MediumBusLayout } from "@/components/dashboard_admin_buy/pdp/previous/bus_layout_medium/bus_layout_medium";
 import { MobileBusLayout } from "@/components/dashboard_admin_buy/pdp/previous/bus_layout_mobile/bus_layout_mobile";
@@ -20,8 +21,21 @@ const SeatSelectionStep = forwardRef<any, SeatSelectionStepProps>(({
 	const screenSize = useScreenSize();
 	const isMobile = screenSize === 'xs' || screenSize === 'sm';
 	const isTablet = screenSize === 'md';
-	const { selectedSeats } = useTicketStore();
+	const { selectedSeats, token, ticketId } = useTicketStore();
 	const maxSelectable = 4; // Default max selectable seats
+
+	// Extract URL parameters for seat map fetching
+	const params = useParams();
+	const urlToken = params.token as string;
+	const urlTicketId = params.ticketId as string;
+
+	// Use URL parameters if available, otherwise fall back to store values
+	const currentToken = urlToken || token;
+	const currentTicketId = urlTicketId || ticketId;
+
+	console.log('🔍 SeatSelectionStep - URL params:', { urlToken, urlTicketId });
+	console.log('🔍 SeatSelectionStep - Store values:', { token, ticketId });
+	console.log('🔍 SeatSelectionStep - Using:', { currentToken, currentTicketId });
 
 	// Expose methods to parent component
 	useImperativeHandle(ref, () => ({
@@ -40,11 +54,23 @@ const SeatSelectionStep = forwardRef<any, SeatSelectionStepProps>(({
 			{/* Bus Layout - Using the exact same design as previous bus_layout */}
 			<div className="bg-white rounded-lg border p-4">
 				{isMobile ? (
-					<MobileBusLayout maxSelectable={maxSelectable} />
+					<MobileBusLayout
+						maxSelectable={maxSelectable}
+						token={currentToken || undefined}
+						ticketId={currentTicketId || undefined}
+					/>
 				) : isTablet ? (
-					<MediumBusLayout maxSelectable={maxSelectable} />
+					<MediumBusLayout
+						maxSelectable={maxSelectable}
+						token={currentToken || undefined}
+						ticketId={currentTicketId || undefined}
+					/>
 				) : (
-					<BusLayout maxSelectable={maxSelectable} />
+					<BusLayout
+						maxSelectable={maxSelectable}
+						token={currentToken || undefined}
+						ticketId={currentTicketId || undefined}
+					/>
 				)}
 			</div>
 

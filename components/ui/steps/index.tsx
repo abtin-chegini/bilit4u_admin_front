@@ -1,7 +1,8 @@
 "use client";
 
-import React, { ReactNode } from "react";
+import React from "react";
 import { FaBusAlt } from "react-icons/fa";
+import { CountdownTimer } from "@/components/ui/countdown-timer";
 
 // Create SVG components for each icon
 const PassengerIcon = ({ color = "#9D9A9A" }) => (
@@ -42,14 +43,9 @@ const TicketIcon = ({ color = "#9D9A9A" }) => (
 
 const stepsData = [
     {
-        label: "انتخاب صندلی",
+        label: "انتخاب صندلی و مشخصات مسافران",
         icon: ({ color }: { color: string }) => <FaBusAlt color={color} size={16} />,
-        component: <div>انتخاب صندلی Component</div>,
-    },
-    {
-        label: "مشخصات مسافران",
-        icon: PassengerIcon,
-        component: <div>مشخصات مسافران Component</div>,
+        component: <div>انتخاب صندلی و مشخصات مسافران Component</div>,
     },
     {
         label: "تأیید اطلاعات",
@@ -70,82 +66,84 @@ const stepsData = [
 
 interface StepsProps {
     active?: number; // 0-based index of the active step (0 for first step, etc)
+    onTimeUp?: () => void;
 }
 
-export default function Steps({ active = 0 }: StepsProps) {
-    // Convert 0-based index to 1-based for display
-    const currentStep = active + 1;
-
+export default function Steps({ active = 1, onTimeUp }: StepsProps) {
     return (
-        <div className="w-full">
-            {/* Desktop View */}
-            <div className="hidden sm:block bg-[#FAFCFE] px-2 md:px-4 py-4 md:py-6 rounded-md w-full mx-auto">
-                <div className="relative flex justify-between items-center pb-6">
-                    {stepsData.map((step, index) => {
-                        const stepNumber = index + 1;
-                        const isCompleted = stepNumber < currentStep;
-                        const isActive = stepNumber === currentStep;
-                        const Icon = step.icon;
+        <div className="w-full p-6" dir="rtl">
+            {/* Desktop View - Steps from right to left with progress bar below labels */}
+            <div className="hidden sm:block">
+                <div className="relative">
+                    {/* Steps */}
+                    <div className="flex justify-between items-center mb-4">
+                        {stepsData.map((step, index) => {
+                            const stepNumber = index + 1;
+                            const isCompleted = index < active;
+                            const isActive = index === active;
+                            const Icon = step.icon;
 
-                        return (
-                            <div
-                                key={index}
-                                className="flex flex-col md:flex-row gap-1 md:gap-2 items-center text-center min-w-0 md:min-w-[80px]"
-                            >
+                            return (
                                 <div
-                                    className={`
-                                    w-5 h-5 md:w-7 md:h-7 flex items-center justify-center rounded-md
-                                    ${isCompleted ? "bg-[#0D5990] text-white" : "bg-white shadow-md"}
-                                `}
+                                    key={index}
+                                    className="flex flex-col items-center text-center min-w-[120px]"
                                 >
-                                    {isCompleted ? (
-                                        <svg width="14" height="10" viewBox="0 0 19 14" fill="none">
-                                            <path d="M6.50088 11.1996L2.30088 6.99961L0.900879 8.39961L6.50088 13.9996L18.5009 1.99961L17.1009 0.599609L6.50088 11.1996Z" fill="white" />
-                                        </svg>
-                                    ) : (
-                                        <Icon color={isActive ? "#0D5990" : "#9D9A9A"} />
-                                    )}
-                                </div>
+                                    <div
+                                        className={`
+                                        w-8 h-8 flex items-center justify-center rounded-lg mb-2
+                                        ${isCompleted ? "bg-[#0D5990] text-white" :
+                                                isActive ? "bg-white border-2 border-[#0D5990]" : "bg-gray-100"}
+                                    `}
+                                    >
+                                        {isCompleted ? (
+                                            <svg width="16" height="12" viewBox="0 0 19 14" fill="none">
+                                                <path d="M6.50088 11.1996L2.30088 6.99961L0.900879 8.39961L6.50088 13.9996L18.5009 1.99961L17.1009 0.599609L6.50088 11.1996Z" fill="white" />
+                                            </svg>
+                                        ) : (
+                                            <Icon color={isActive ? "#0D5990" : "#9D9A9A"} />
+                                        )}
+                                    </div>
 
-                                <div
-                                    className={`
-                                    text-[10px] sm:text-[11px] md:text-[13px] font-IranYekanRegular whitespace-nowrap
-                                    ${isActive || isCompleted ? "text-[#0D5990]" : "text-gray-500"}
-                                `}
-                                >
-                                    {step.label}
+                                    <div
+                                        className={`
+                                        text-[13px] font-IranYekanRegular whitespace-nowrap text-center
+                                        ${isActive || isCompleted ? "text-[#0D5990]" : "text-gray-500"}
+                                    `}
+                                    >
+                                        {step.label}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
 
-                    <div className="absolute bottom-0 left-0 w-full h-[5px] bg-gray-300 rounded-3xl" />
-                    <div
-                        className="absolute bottom-0 right-0 h-[5px] bg-[#0D5990] rounded-3xl transition-all duration-300 ease-in-out"
-                        style={{
-                            width: `${((currentStep - 1) / (stepsData.length - 1)) * 100}%`,
-                        }}
-                    />
+                    {/* Progress bar below the labels */}
+                    <div className="relative w-full h-1 bg-gray-200 rounded-full">
+                        <div
+                            className="absolute top-0 left-0 h-full bg-[#0D5990] rounded-full transition-all duration-300 ease-in-out"
+                            style={{
+                                width: `${(active / (stepsData.length - 1)) * 100}%`,
+                            }}
+                        />
+                    </div>
                 </div>
             </div>
 
-            {/* Mobile View - Fixed width of 468px */}
-            <div className="block sm:hidden">
-                <div className="flex items-center justify-between bg-white rounded-lg py-2 px-3 shadow-sm border border-[#CCD6E1] w-[468px] max-w-full mx-auto">
-                    {/* Current step icon and label */}
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-5 h-5 bg-white shadow-sm rounded flex items-center justify-center">
-                            {stepsData[active].icon({ color: "#0D5990" })}
-                        </div>
-                        <span className="text-[#0D5990] font-IranYekanRegular text-[10px]">
-                            {stepsData[active].label}
-                        </span>
-                    </div>
 
-                    {/* Step dots - non-clickable */}
+            {/* Timer using your countdown component */}
+            <div className="mt-6">
+                <CountdownTimer
+                    initialTime={900} // 15 minutes
+                    onTimeUp={onTimeUp}
+                />
+            </div>
+
+            {/* Mobile View - Simplified */}
+            <div className="block sm:hidden">
+                <div className="flex items-center justify-between bg-white rounded-lg py-2 px-3 shadow-sm border border-[#CCD6E1] w-full mx-auto">
+                    {/* Step dots */}
                     <div className="flex items-center gap-1.5">
                         {stepsData.map((_, index) => {
-                            const stepNum = index + 1;
                             const isActive = index === active;
                             const isCompleted = index < active;
 
@@ -156,10 +154,19 @@ export default function Steps({ active = 0 }: StepsProps) {
                                         isCompleted ? "bg-[#0D5990]/60 w-1.5 h-1.5" :
                                             "bg-gray-300 w-1.5 h-1.5"
                                         }`}
-                                    aria-label={`Step ${stepNum}: ${stepsData[index].label}`}
                                 ></div>
                             );
                         })}
+                    </div>
+
+                    {/* Current step */}
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-5 h-5 bg-white shadow-sm rounded flex items-center justify-center">
+                            {stepsData[active].icon({ color: "#0D5990" })}
+                        </div>
+                        <span className="text-[#0D5990] font-IranYekanRegular text-[10px]">
+                            {stepsData[active].label}
+                        </span>
                     </div>
                 </div>
             </div>

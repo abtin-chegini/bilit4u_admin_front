@@ -193,31 +193,6 @@ export default function TicketPurchasePage() {
 
 	return (
 		<div className="min-h-screen bg-gray-50">
-			{/* Header with back button */}
-			<div className="bg-white border-b border-gray-200 px-4 py-3">
-				<div className="max-w-7xl mx-auto flex items-center justify-between">
-					<Button
-						variant="ghost"
-						onClick={handleBackToPLP}
-						className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-					>
-						<ArrowRight className="h-4 w-4" />
-						بازگشت
-					</Button>
-
-					<div className="text-center">
-						<h1 className="text-lg font-iran-yekan-bold text-gray-800">
-							خرید بلیط اتوبوس
-						</h1>
-						<p className="text-sm text-gray-600">
-							{ticketData.sourceCity} → {ticketData.destinationCity}
-						</p>
-					</div>
-
-					<div></div> {/* Spacer for centering */}
-				</div>
-			</div>
-
 			{/* Bus Reservation Stepper */}
 			<div className="py-6">
 				<BusReservationWithStepper

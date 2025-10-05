@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from 'next/navigation';
+import { ArrowRight } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Session } from '@supabase/supabase-js';
 
@@ -281,6 +282,7 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 	// State management
 	const [currentStep, setCurrentStep] = useState(0);
 	const [isLoading, setIsLoading] = useState(false);
+	const [showUpdateDialog, setShowUpdateDialog] = useState(false);
 	const [validationData, setValidationData] = useState<{
 		isAnyPassengerValid: boolean;
 		allPassengersValid: boolean;
@@ -546,7 +548,7 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 	const session = getAuthSession();
 
-	// Step configuration - Combined seat selection and passenger details in first step
+	// Step configuration - 4 steps with combined seat selection and passenger details
 	const steps = [
 		{
 			id: 'seat-selection-and-passenger-details',
@@ -565,6 +567,12 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 			title: 'پرداخت',
 			description: 'مبلغ بلیط را پرداخت کنید',
 			component: 'payment'
+		},
+		{
+			id: 'ticket-issuance',
+			title: 'صدور بلیط',
+			description: 'بلیط شما صادر شده است',
+			component: 'ticket-issuance'
 		}
 	];
 
@@ -600,15 +608,8 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 					});
 					return false;
 				}
-				// Also validate passenger details if seats are selected
-				if (filteredSeats.length > 0 && !validationData.allPassengersValid) {
-					toast({
-						title: "خطا",
-						description: "لطفا اطلاعات تمام مسافران را تکمیل کنید",
-						variant: "destructive"
-					});
-					return false;
-				}
+				// For now, allow proceeding if seats are selected (we'll add passenger validation later)
+				console.log('Seats selected:', filteredSeats.length);
 				return true;
 
 			case 1: // Confirmation
@@ -617,6 +618,9 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 			case 2: // Payment
 				return true; // Payment validation would go here
 
+			case 3: // Ticket issuance
+				return true; // Always valid if we reached this step
+
 			default:
 				return false;
 		}
@@ -624,10 +628,21 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 	// Handle continue button click
 	const handleContinue = async () => {
-		const isValid = await validateCurrentStep();
-		if (isValid) {
-			nextStep();
-		}
+		console.log('Continue button clicked');
+		console.log('Current step:', currentStep);
+		console.log('Selected seats:', selectedSeats);
+
+		// Show the dialog but don't proceed to next step
+		setShowUpdateDialog(true);
+		setIsLoading(true);
+		console.log('Dialog state set to true - showing update message');
+
+		// Keep dialog open for longer to show the message
+		setTimeout(() => {
+			setIsLoading(false);
+			setShowUpdateDialog(false);
+			console.log('Dialog closed - next steps not ready yet');
+		}, 3000);
 	};
 
 	// Handle validation change from passenger details
@@ -657,7 +672,7 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 	// Render step content using exact same components as previous PDP
 	const renderStepContent = () => {
 		switch (currentStep) {
-			case 0: // Combined seat selection and passenger details - Exact same as bus_reservation_custom
+			case 0: // Combined seat selection and passenger details
 				return (
 					<div dir="rtl" className="max-w-[1200px] mx-auto mt-6 flex flex-col gap-6">
 						<div className="flex flex-col md:flex-row gap-6">
@@ -786,23 +801,20 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 							</div>
 						</div>
 
-						{/* Passenger details form - only show when seats are selected */}
-						{selectedSeats.length > 0 && (
-							<div className="mt-6 transition-all duration-300 ease-in-out">
-								<div className="bg-white border border-gray-300 p-4 rounded-md shadow-md">
-									{/* PassengerDetailsForm without dir="rtl" */}
-									<PassengerDetailsForm
-										seats={selectedSeats.map(seat => ({
-											...seat,
-											seatNo: typeof seat.seatNo === 'string' ? parseInt(seat.seatNo) : seat.seatNo
-										}))}
-										onRemovePassenger={handleRemovePassenger}
-										onSeatStateChange={handleSeatStateChange}
-										onValidationChange={handleValidationChange}
-									/>
-								</div>
-							</div>
-						)}
+						{/* Passenger Details Form - Always show in step 0 */}
+						<div className="bg-white rounded-lg shadow-sm border p-6 mt-6">
+							<h2 className="text-xl font-bold text-gray-800 mb-6 font-iran-yekan">مشخصات مسافران</h2>
+							<PassengerDetailsForm
+								seats={selectedSeats.map((seat: any) => ({
+									...seat,
+									seatNo: typeof seat.seatNo === 'string' ? parseInt(seat.seatNo) : seat.seatNo
+								}))}
+								onRemovePassenger={handleRemovePassenger}
+								onSeatStateChange={handleSeatStateChange}
+								onValidationChange={handleValidationChange}
+							/>
+						</div>
+
 					</div>
 				);
 
@@ -875,6 +887,16 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 					</div>
 				);
 
+			case 3: // Ticket issuance step
+				return (
+					<div dir="rtl" className="max-w-[1200px] mx-auto mt-6">
+						<div className="bg-white rounded-lg shadow-sm border p-6">
+							<h2 className="text-xl font-bold text-gray-800 mb-6 font-iran-yekan">صدور بلیط</h2>
+							<p className="text-gray-600 font-iran-yekan">بلیط شما با موفقیت صادر شد.</p>
+						</div>
+					</div>
+				);
+
 			default:
 				return <div>خطا در نمایش محتوا</div>;
 		}
@@ -882,18 +904,18 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 	return (
 		<div className="w-full max-w-7xl mx-auto p-4 space-y-6">
-			{/* Header */}
-			<div className="text-center">
-				<h1 className="text-2xl font-iran-yekan-bold text-gray-800 mb-2">
-					رزرو بلیط اتوبوس
-				</h1>
-				<p className="text-gray-600">
-					مراحل رزرو بلیط را تکمیل کنید
-				</p>
-			</div>
-
 			{/* Stepper */}
-			<Steps active={currentStep} />
+			<Steps
+				active={currentStep}
+				onTimeUp={() => {
+					toast({
+						title: "زمان به پایان رسید",
+						description: "زمان رزرو شما به پایان رسیده است. لطفا مجددا تلاش کنید.",
+						variant: "destructive"
+					});
+					// Optionally redirect or reset the form
+				}}
+			/>
 
 			{/* Ticket Card - Only show on desktop */}
 			{!isMobile && !isTablet && (ticketData || isLoadingSrvDetails) && (
@@ -980,52 +1002,58 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 			{/* Navigation Buttons */}
 			{!hideContinueButton && currentStep < 3 && (
-				<div className="flex justify-between items-center">
-					<Button
-						variant="outline"
-						onClick={prevStep}
-						disabled={currentStep === 0}
-						className="font-iran-yekan"
-					>
-						مرحله قبلی
-					</Button>
-
-					<div className="text-center">
-						<p className="text-sm text-gray-600 mb-2">
-							مرحله {toPersianDigits(currentStep + 1)} از {toPersianDigits(steps.length)}
-						</p>
-						<p className="text-xs text-gray-500">
-							{steps[currentStep].title}
-						</p>
-					</div>
-
+				<div className="flex justify-between items-center gap-4">
+					{/* Next Step Button - Left Side */}
 					<Button
 						onClick={handleContinue}
 						disabled={isLoading}
-						className="bg-blue-600 hover:bg-blue-700 font-iran-yekan"
+						className="bg-[#0D5990] hover:bg-[#0A4A7A] font-iran-yekan text-white px-8 py-3 text-lg font-medium cursor-pointer hover:cursor-pointer disabled:cursor-not-allowed"
 					>
 						{isLoading ? 'در حال پردازش...' :
-							currentStep === 2 ? 'پرداخت' : 'ادامه'}
+							currentStep === 0 ? 'تأیید اطلاعات و ادامه' :
+								currentStep === 1 ? 'پرداخت و ادامه' :
+									currentStep === 2 ? 'صدور بلیط و ادامه' : 'ادامه'}
+					</Button>
+
+					{/* Back to Dashboard Button - Right Side */}
+					<Button
+						variant="outline"
+						onClick={currentStep === 0 ? () => {
+							console.log('Back to dashboard clicked');
+							router.push('/dashboard');
+						} : () => {
+							console.log('Previous step clicked');
+							prevStep();
+						}}
+						className="font-iran-yekan flex items-center gap-2 px-6 py-3 text-base border-gray-300 hover:bg-gray-50 cursor-pointer hover:cursor-pointer"
+					>
+						<ArrowRight className="h-4 w-4" />
+						{currentStep === 0 ? 'بازگشت به داشبورد' : 'مرحله قبلی'}
 					</Button>
 				</div>
 			)}
 
-			{/* Step Progress Indicator */}
-			<div className="flex justify-center space-x-2 space-x-reverse">
-				{steps.map((_, index) => (
-					<button
-						key={index}
-						onClick={() => goToStep(index)}
-						className={`w-3 h-3 rounded-full transition-colors ${index === currentStep
-							? 'bg-blue-600'
-							: index < currentStep
-								? 'bg-green-500'
-								: 'bg-gray-300'
-							}`}
-						disabled={index > currentStep}
-					/>
-				))}
-			</div>
+			{/* Update Dialog */}
+			<Dialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
+				<DialogContent className="max-w-md w-[90%] p-0 overflow-hidden">
+					<div className="bg-white rounded-lg p-8 text-center">
+						<div className="mb-4">
+							<div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+								<svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+								</svg>
+							</div>
+							<DialogTitle className="text-lg font-IranYekanBold text-gray-900 mb-2">
+								در حال بروزرسانی هستیم
+							</DialogTitle>
+							<p className="text-gray-600 font-IranYekanRegular">
+								لطفا کمی صبر کنید...
+							</p>
+						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
+
 		</div>
 	);
 };

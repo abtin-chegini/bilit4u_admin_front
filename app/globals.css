@@ -282,4 +282,8 @@
   .seat-label.reserved-male {
     color: #5488b3;
   }
+
+  .seat-label.reserved-female {
+    color: #458f60;
+  }
 }

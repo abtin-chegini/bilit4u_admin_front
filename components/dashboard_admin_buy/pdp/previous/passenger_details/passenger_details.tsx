@@ -18,11 +18,11 @@ import { useUserStore } from '@/store/UserStore';
 // Create interface for previous passengers - FIXED: Use integer gender
 interface PreviousPassenger {
 	id: number | string;
-	name: string;
-	family: string;
-	nationalId: string;
-	gender: 1 | 2; // FIXED: 1 = female, 2 = male
-	birthDate: string;
+	fName: string;
+	lName: string;
+	nationalCode: string;
+	gender: 'Male' | 'Female'; // Updated to match dialog interface
+	dateOfBirth?: string;
 }
 
 // API response passenger interface - FIXED: Handle API response properly
@@ -79,21 +79,27 @@ const formatBirthDateForPassengerForm = (birthDate?: string | null): string => {
 };
 
 interface PassengerData {
-	seatId: number;
-	seatNo?: string | number;
-	gender: 1 | 2; // FIXED: Use integer: 1 = female, 2 = male
-	phone: string; // Will store date in YYYYMMDD format
-	name: string;
-	family: string;
-	nationalId: string;
+	fName: string;
+	lName: string;
+	gender: string;
+	nationalCode: string;
+	address?: string;
+	dateOfBirth: string;
+	phoneNumber: string;
+	email?: string;
+	seatNo?: string;
+	seatID: number;
 	previousPassengerId?: number | string;
 	validationErrors?: {
-		name?: string;
-		family?: string;
-		nationalId?: string;
-		phone?: string;
+		fName?: string;
+		lName?: string;
+		nationalCode?: string;
+		phoneNumber?: string;
+		email?: string;
+		address?: string;
+		dateOfBirth?: string;
 	};
-	hasInvalidNationalId?: boolean;
+	hasInvalidNationalCode?: boolean;
 }
 
 interface PassengerDetailsFormProps {
@@ -144,7 +150,6 @@ export const PassengerDetailsForm = forwardRef<
 	// Debug function to show current UserStore state
 	const debugUserStore = () => {
 		const currentUser = useUserStore.getState().user;
-		console.log('🔍 Current UserStore state:', currentUser);
 		return currentUser;
 	};
 	const captureRef = useRef<HTMLDivElement>(null);
@@ -200,48 +205,36 @@ export const PassengerDetailsForm = forwardRef<
 
 	// Initialize additional contact info from UserStore on component mount
 	useEffect(() => {
-		console.log('🔍 UserStore user object on mount:', user);
-		console.log('🔍 user?.additionalEmail:', user?.additionalEmail);
-		console.log('🔍 user?.additionalPhone:', user?.additionalPhone);
-
 		// Initialize additional contact info if available
 		if (user?.additionalEmail) {
 			setAdditionalEmail(user.additionalEmail);
-			console.log('✅ Initialized additionalEmail from UserStore:', user.additionalEmail);
 		}
 		if (user?.additionalPhone) {
 			setAdditionalPhone(user.additionalPhone);
-			console.log('✅ Initialized additionalPhone from UserStore:', user.additionalPhone);
 		}
 
 		// Show additional contact section if user has additional contact info
 		if (user?.additionalEmail || user?.additionalPhone) {
 			setShowAdditionalContact(true);
-			console.log('✅ Auto-enabled additional contact section due to existing data');
 		}
 	}, [user?.additionalEmail, user?.additionalPhone]);
 
 	// Additional effect to restore state when component remounts
 	useEffect(() => {
-		console.log('🔄 Component mounted/remounted - checking for additional contact info');
-
 		// Always check and restore additional contact info from UserStore when component mounts
 		const currentUser = useUserStore.getState().user;
 
 		if (currentUser?.additionalEmail && !additionalEmail) {
 			setAdditionalEmail(currentUser.additionalEmail);
-			console.log('🔄 Restored additionalEmail on remount:', currentUser.additionalEmail);
 		}
 
 		if (currentUser?.additionalPhone && !additionalPhone) {
 			setAdditionalPhone(currentUser.additionalPhone);
-			console.log('🔄 Restored additionalPhone on remount:', currentUser.additionalPhone);
 		}
 
 		// Auto-show section if we have data
 		if ((currentUser?.additionalEmail || currentUser?.additionalPhone) && !showAdditionalContact) {
 			setShowAdditionalContact(true);
-			console.log('🔄 Auto-enabled additional contact section on remount');
 		}
 	}, []); // Only run on mount
 
@@ -257,17 +250,13 @@ export const PassengerDetailsForm = forwardRef<
 					}
 				}
 			);
-			console.log("Profile response:", profileResponse.data);
-
 			// New admin API response structure
 			const profileData = profileResponse.data;
 
 			// Check if user has phone number (new API doesn't include phoneNumber)
 			// Since the new API doesn't have phoneNumber, we'll set it to false
-			console.log("Admin API doesn't include phoneNumber field");
 			setHasPhoneNumber(false);
 
-			console.log("User data:", profileData);
 			setUser({
 				firstName: profileData.name,
 				phoneNumber: '', // New API doesn't provide phoneNumber
@@ -275,11 +264,9 @@ export const PassengerDetailsForm = forwardRef<
 				profileData: profileData
 			});
 
-			console.log("User data stored in Zustand:", profileData);
 			return "success";
 
 		} catch (error) {
-			console.error("Error fetching user profile:", error);
 			return null;
 		}
 	};
@@ -289,19 +276,25 @@ export const PassengerDetailsForm = forwardRef<
 		const newMap: Record<number, PassengerData> = {};
 		selectedSeats.forEach((s) => {
 			const existing = passengerMap[s.id];
-			// FIXED: Convert seat state to integer gender value
-			const genderValue = s.state.includes("female") ? 1 : 2; // 1 for female, 2 for male
+			// Convert seat state to string gender value
+			const genderValue = s.state.includes("female") ? "Female" : "Male";
 			if (existing) {
-				newMap[s.id] = { ...existing, gender: genderValue, seatNo: s.seatNo };
+				newMap[s.id] = { ...existing, gender: genderValue, seatNo: s.seatNo?.toString() };
 			} else {
 				newMap[s.id] = {
-					seatId: s.id,
-					seatNo: s.seatNo,
+					fName: "",
+					lName: "",
 					gender: genderValue,
-					name: "",
-					family: "",
-					nationalId: "",
-					phone: "",
+					nationalCode: "",
+					address: "",
+					dateOfBirth: "",
+					phoneNumber: "",
+					email: "",
+					seatNo: s.seatNo?.toString(),
+					seatID: s.id,
+					previousPassengerId: undefined,
+					validationErrors: {},
+					hasInvalidNationalCode: false
 				};
 			}
 		});
@@ -358,7 +351,7 @@ export const PassengerDetailsForm = forwardRef<
 		}
 
 		const hasDuplicateNationalId = Object.values(passengerMap).some(
-			passenger => passenger.hasInvalidNationalId === true
+			passenger => passenger.hasInvalidNationalCode === true
 		);
 
 		if (hasDuplicateNationalId) {
@@ -369,15 +362,15 @@ export const PassengerDetailsForm = forwardRef<
 		}
 
 		const isAnyPassengerValid = Object.values(passengerMap).some(passenger => (
-			passenger.name.trim() !== '' &&
-			passenger.family.trim() !== '' &&
-			passenger.nationalId.length === 10
+			passenger.fName?.trim() !== '' &&
+			passenger.lName?.trim() !== '' &&
+			passenger.nationalCode?.length === 10
 		));
 
 		const allPassengersValid = Object.values(passengerMap).every(passenger => (
-			passenger.name.trim() !== '' &&
-			passenger.family.trim() !== '' &&
-			passenger.nationalId.length === 10
+			passenger.fName?.trim() !== '' &&
+			passenger.lName?.trim() !== '' &&
+			passenger.nationalCode?.length === 10
 		));
 
 		const additionalContactValid = validateAdditionalContact();
@@ -423,13 +416,11 @@ export const PassengerDetailsForm = forwardRef<
 		setActiveSeatId(seatId);
 		setSelectedPrevPassengers([]);
 
-		console.log('🔍 Previous Passengers Click - Seat ID:', seatId);
 
 		if (session?.access_token && session?.refresh_token) {
 			setIsLoadingPassengers(true);
 
 			try {
-				console.log('🔍 Checking user authentication...');
 
 				// Check if user is logged in using the admin profile API
 				const response = await fetch('https://api.bilit4u.com/admin/api/v1/admin/profile', {
@@ -446,7 +437,6 @@ export const PassengerDetailsForm = forwardRef<
 				if (response.ok && profileData.success !== false) {
 					// User is authenticated, fetch passengers from new API
 					try {
-						console.log('🔍 Fetching passengers from API...');
 
 						const passengersResponse = await fetch('https://api.bilit4u.com/admin/api/v1/admin/passengers', {
 							method: 'GET',
@@ -456,7 +446,6 @@ export const PassengerDetailsForm = forwardRef<
 							}
 						});
 
-						console.log('🔍 API Response Status:', passengersResponse.status, passengersResponse.ok ? '✅' : '❌');
 
 						const passengersData = await passengersResponse.json();
 
@@ -519,7 +508,6 @@ export const PassengerDetailsForm = forwardRef<
 			setIsLoadingPassengers(true);
 			setErrorMessage(null);
 
-			console.log("🔍 fetchPreviousPassengers - Starting...");
 
 			const response = await axios.get(
 				'https://api.bilit4u.com/admin/api/v1/admin/passengers',
@@ -531,33 +519,24 @@ export const PassengerDetailsForm = forwardRef<
 				}
 			);
 
-			console.log("🔍 fetchPreviousPassengers - Response Status:", response.status, response.data?.success ? '✅' : '❌');
 
 			if (!response.data ||
 				!response.data.success ||
 				!response.data.passengers ||
 				response.data.passengers.length === 0) {
 
-				console.log("No passengers found - stopping search");
 				setPreviousPassengers([]);
 				setErrorMessage("هیچ مسافری برای این کاربر وجود ندارد");
 				return;
 			}
 
 			// Process passengers with correct gender conversion for admin API
-			console.log('🔍 Processing passengers:', response.data.passengers?.length || 0, 'found');
 
 			const passengers = response.data.passengers
 				.filter((passenger: any) => passenger.id !== undefined && passenger.id !== null)
 				.map((passenger: any, index: number) => {
 					// Debug only if there's an issue with fName/lName
 					if (!passenger.fName || !passenger.lName) {
-						console.log(`⚠️ Passenger ${index} missing name data:`, {
-							id: passenger.id,
-							fName: passenger.fName,
-							lName: passenger.lName,
-							rawPassenger: passenger
-						});
 					}
 
 					return {
@@ -600,11 +579,21 @@ export const PassengerDetailsForm = forwardRef<
 
 	// Handle passenger field changes
 	const handleChange = (seatId: number, field: string, value: string) => {
-		if (field === 'nationalId' && value.length === 10) {
+		// Map old field names to new field names
+		const fieldMapping: Record<string, string> = {
+			'name': 'fName',
+			'family': 'lName',
+			'nationalId': 'nationalCode',
+			'phone': 'dateOfBirth' // Form sends birth date as 'phone' field
+		};
+
+		const mappedField = fieldMapping[field] || field;
+
+		if (mappedField === 'nationalCode' && value.length === 10) {
 			const duplicateSeat = Object.entries(passengerMap).find(
 				([id, passenger]) =>
 					Number(id) !== seatId &&
-					passenger.nationalId === value
+					passenger.nationalCode === value
 			);
 
 			if (duplicateSeat) {
@@ -612,30 +601,30 @@ export const PassengerDetailsForm = forwardRef<
 					...prev,
 					[seatId]: {
 						...prev[seatId],
-						[field]: value,
+						[mappedField]: value,
 						validationErrors: {
 							...(prev[seatId].validationErrors || {}),
-							nationalId: `این کد ملی قبلاً برای مسافر صندلی ${duplicateSeat[1].seatNo} استفاده شده است`
+							nationalCode: `این کد ملی قبلاً برای مسافر صندلی ${duplicateSeat[1].seatNo} استفاده شده است`
 						},
-						hasInvalidNationalId: true
+						hasInvalidNationalCode: true
 					}
 				}));
 				return;
 			}
 
-			if (passengerMap[seatId]?.validationErrors?.nationalId?.includes('قبلاً برای مسافر')) {
+			if (passengerMap[seatId]?.validationErrors?.nationalCode?.includes('قبلاً برای مسافر')) {
 				setPassengerMap((prev) => {
 					const { validationErrors, ...passenger } = prev[seatId];
 					const newValidationErrors = { ...validationErrors };
-					delete newValidationErrors.nationalId;
+					delete newValidationErrors.nationalCode;
 
 					return {
 						...prev,
 						[seatId]: {
 							...passenger,
-							[field]: value,
+							[mappedField]: value,
 							validationErrors: Object.keys(newValidationErrors).length > 0 ? newValidationErrors : undefined,
-							hasInvalidNationalId: false
+							hasInvalidNationalCode: false
 						}
 					};
 				});
@@ -647,14 +636,13 @@ export const PassengerDetailsForm = forwardRef<
 			...prev,
 			[seatId]: {
 				...prev[seatId],
-				[field]: value,
+				[mappedField]: value,
 			},
 		}));
 	};
 
 	// Handle passenger removal
 	const handleRemovePassenger = (seatId: number) => {
-		console.log(`PassengerDetailsForm: Removing passenger for seat ${seatId}`);
 
 		const passengerToRemove = passengerMap[seatId];
 
@@ -675,9 +663,8 @@ export const PassengerDetailsForm = forwardRef<
 		onRemovePassenger(seatId);
 	};
 
-	// FIXED: Handle gender changes with integer values
-	const handleGenderChange = (seatId: number, gender: 1 | 2) => {
-		console.log(`PassengerDetailsForm: Changing gender for seat ${seatId} to ${gender}`);
+	// Handle gender changes with string values
+	const handleGenderChange = (seatId: number, gender: string) => {
 
 		// Update passenger map
 		setPassengerMap((prev) => ({
@@ -688,8 +675,8 @@ export const PassengerDetailsForm = forwardRef<
 			},
 		}));
 
-		// FIXED: Convert integer gender to string for seat state
-		const genderString = gender === 1 ? "female" : "male";
+		// Convert string gender to lowercase for seat state
+		const genderString = gender.toLowerCase() as "male" | "female";
 		directlyUpdateSeatGender(seatId, genderString);
 	};
 
@@ -764,32 +751,42 @@ export const PassengerDetailsForm = forwardRef<
 					...prev,
 					[seatWithPassenger[0]]: {
 						...prev[Number(seatWithPassenger[0])],
-						name: "",
-						family: "",
-						nationalId: "",
-						phone: "",
-						previousPassengerId: undefined
+						fName: "",
+						lName: "",
+						gender: "Male",
+						nationalCode: "",
+						address: "",
+						dateOfBirth: "",
+						phoneNumber: "",
+						email: "",
+						seatNo: prev[Number(seatWithPassenger[0])].seatNo,
+						seatID: Number(seatWithPassenger[0]),
+						previousPassengerId: undefined,
+						validationErrors: {},
+						hasInvalidNationalCode: false
 					}
 				}));
 			}
 		}
 
-		// FIXED: Update passenger map with integer gender
+		// Update passenger map with correct field names from dialog
+
 		setPassengerMap(prev => ({
 			...prev,
 			[activeSeatId]: {
 				...prev[activeSeatId],
-				name: selectedPassenger.name,
-				family: selectedPassenger.family,
-				nationalId: selectedPassenger.nationalId,
-				phone: selectedPassenger.birthDate || "",
-				gender: selectedPassenger.gender, // This is already integer (1 or 2)
+				fName: selectedPassenger.fName,
+				lName: selectedPassenger.lName,
+				nationalCode: selectedPassenger.nationalCode,
+				dateOfBirth: selectedPassenger.dateOfBirth || "",
+				phoneNumber: "", // Admin API doesn't provide phoneNumber, so keep it empty
+				gender: selectedPassenger.gender, // Already in correct format from dialog
 				previousPassengerId: selectedPassenger.id
 			}
 		}));
 
-		// FIXED: Convert integer gender to string for seat update
-		const genderString = selectedPassenger.gender === 1 ? "female" : "male";
+		// Convert string gender to lowercase for seat update
+		const genderString = selectedPassenger.gender.toLowerCase() as "male" | "female";
 		directlyUpdateSeatGender(activeSeatId, genderString);
 
 		setAssignedPassengerIds(prev => {
@@ -799,7 +796,7 @@ export const PassengerDetailsForm = forwardRef<
 
 		toast({
 			title: "مسافر انتخاب شد",
-			description: `اطلاعات ${selectedPassenger.name} ${selectedPassenger.family} با موفقیت به صندلی ${passengerMap[activeSeatId].seatNo} اضافه شد`,
+			description: `اطلاعات ${selectedPassenger.fName} ${selectedPassenger.lName} با موفقیت به صندلی ${passengerMap[activeSeatId].seatNo} اضافه شد`,
 			variant: "default"
 		});
 
@@ -819,25 +816,21 @@ export const PassengerDetailsForm = forwardRef<
 	// Expose the savePassengers method
 	useImperativeHandle(ref, () => ({
 		savePassengers: async () => {
-			console.log("PassengerDetailsForm: savePassengers method called");
 
 			if (isSavingPassengers) {
-				console.log("Already saving passengers, returning false");
 				return { success: false, passengers: [] };
 			}
 
 			if (session && hasPhoneNumber === false) {
-				console.log("User does not have a phone number, showing dialog");
 				setPhoneNumberDialogOpen(true);
 				return { success: false, passengers: [] };
 			}
 
 			const hasDuplicateNationalId = Object.values(passengerMap).some(
-				passenger => passenger.hasInvalidNationalId === true
+				passenger => passenger.hasInvalidNationalCode === true
 			);
 
 			if (hasDuplicateNationalId) {
-				console.log("Duplicate national IDs found - showing toast");
 				toast({
 					title: "کد ملی تکراری",
 					description: "لطفاً کد ملی تکراری را اصلاح کنید. هر مسافر باید کد ملی منحصر به فرد داشته باشد.",
@@ -847,10 +840,8 @@ export const PassengerDetailsForm = forwardRef<
 			}
 
 			const validation = validateForm();
-			console.log("Form validation result:", validation);
 
 			if (!validation.allPassengersValid) {
-				console.log("Form validation failed - showing toast");
 				toast({
 					title: "اطلاعات ناقص",
 					description: "لطفاً همه فیلدهای اجباری را پر کنید",
@@ -860,7 +851,6 @@ export const PassengerDetailsForm = forwardRef<
 			}
 
 			setIsSavingPassengers(true);
-			console.log("Setting isSavingPassengers to true");
 
 			try {
 				const { user } = useUserStore.getState();
@@ -873,33 +863,30 @@ export const PassengerDetailsForm = forwardRef<
 					additionalPhone: additionalPhone || user.phoneNumber || ""
 				} : null;
 
-				console.log("Processing passengers from passengerMap:", passengerMap);
 
 				const newPassengers = [];
 				const modifiedPrevPassengers = [];
 				const storedPassengers: StoredPassenger[] = [];
 
 
-				// FIXED: Process passengers with correct gender handling
+				// Process passengers with correct field mapping
 				for (const passenger of Object.values(passengerMap)) {
-					console.log("Processing passenger:", passenger);
-
-					const formattedBirthDate = formatDateForApi(passenger.phone);
-					console.log("Formatted birth date:", formattedBirthDate);
+					const formattedBirthDate = formatDateForApi(passenger.dateOfBirth);
 
 					const isFromPrevious = !!passenger.previousPassengerId;
 
-					// Convert integer gender to string format for StoredPassenger
+					// Convert string gender to integer format for StoredPassenger
+					const genderInt = passenger.gender === "Female" ? 1 : 2;
 					const storedPassenger: StoredPassenger = {
 						id: isFromPrevious ? passenger.previousPassengerId! : `new-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-						name: passenger.name,
-						family: passenger.family,
-						nationalId: passenger.nationalId,
-						gender: passenger.gender,// Convert integer to string format
-						birthDate: passenger.phone || '',
+						name: passenger.fName,
+						family: passenger.lName,
+						nationalId: passenger.nationalCode,
+						gender: genderInt, // Convert string to integer format
+						birthDate: passenger.dateOfBirth || '',
 						isFromPreviousPassengers: isFromPrevious,
 						hasBeenModified: false,
-						seatId: passenger.seatId,
+						seatId: passenger.seatID,
 						seatNo: passenger.seatNo || 0
 					};
 
@@ -908,57 +895,50 @@ export const PassengerDetailsForm = forwardRef<
 
 						if (originalPassenger) {
 							const isModified =
-								passenger.name !== originalPassenger.name ||
-								passenger.family !== originalPassenger.family ||
-								passenger.nationalId !== originalPassenger.nationalId ||
+								passenger.fName !== originalPassenger.fName ||
+								passenger.lName !== originalPassenger.lName ||
+								passenger.nationalCode !== originalPassenger.nationalCode ||
 								passenger.gender !== originalPassenger.gender ||
-								passenger.phone !== originalPassenger.birthDate;
+								passenger.dateOfBirth !== originalPassenger.dateOfBirth;
 
 							if (isModified) {
-								// FIXED: Convert integer gender to boolean for API
+								// Convert string gender to boolean for API
 								modifiedPrevPassengers.push({
 									id: passenger.previousPassengerId,
-									fName: passenger.name,
-									lName: passenger.family,
-									nationalCode: passenger.nationalId,
-									gender: passenger.gender === 2, // Convert: 2=male=true, 1=female=false
+									fName: passenger.fName,
+									lName: passenger.lName,
+									nationalCode: passenger.nationalCode,
+									gender: passenger.gender === "Male", // Convert: "Male"=true, "Female"=false
 									dateOfBirth: formattedBirthDate,
 									seatNo: passenger.seatNo?.toString() || '',
-									seatId: passenger.seatId.toString() || ''
+									seatId: passenger.seatID.toString() || ''
 								});
 
 								storedPassenger.hasBeenModified = true;
 							}
 						}
 					} else {
-						// FIXED: Convert integer gender to boolean for API
+						// Convert string gender to boolean for API
 						newPassengers.push({
-							FName: passenger.name,
-							LName: passenger.family,
-							NationalCode: passenger.nationalId,
-							Gender: passenger.gender === 2, // Convert: 2=male=true, 1=female=false
+							FName: passenger.fName,
+							LName: passenger.lName,
+							NationalCode: passenger.nationalCode,
+							Gender: passenger.gender === "Male", // Convert: "Male"=true, "Female"=false
 							DateOfBirth: formattedBirthDate,
 							seatNo: passenger.seatNo?.toString() || '',
-							seatId: passenger.seatId.toString() || ''
+							seatId: passenger.seatID.toString() || ''
 						});
 					}
 
 					storedPassengers.push(storedPassenger);
 				}
 
-				console.log("Final passenger data to be saved:", {
-					total: storedPassengers.length,
-					new: newPassengers.length,
-					modified: modifiedPrevPassengers.length,
-					details: storedPassengers
-				});
 
 				// Handle API calls if authenticated
 				if (session?.access_token && session?.refresh_token) {
 					// Add new passengers
 					if (newPassengers.length > 0) {
 						try {
-							console.log("Sending new passengers to API:", newPassengers);
 							const response = await axios.post(
 								'https://api.bilit4u.com/admin/api/v1/admin/passengers/bulk',
 								{
@@ -973,7 +953,6 @@ export const PassengerDetailsForm = forwardRef<
 							);
 
 							if (response.data?.passengers) {
-								console.log("Received response from new passengers API:", response.data);
 								response.data.passengers.forEach((serverPassenger: any) => {
 									const matchIndex = storedPassengers.findIndex(
 										p => !p.isFromPreviousPassengers && p.nationalId === serverPassenger.nationalCode
@@ -993,9 +972,7 @@ export const PassengerDetailsForm = forwardRef<
 					// Update modified passengers
 					if (modifiedPrevPassengers.length > 0) {
 						try {
-							console.log("Updating modified passengers:", modifiedPrevPassengers);
 							for (const passenger of modifiedPrevPassengers) {
-								console.log("Updating passengerBody:", passenger);
 								await axios.put(
 									'https://api.bilit4u.com/admin/api/v1/admin/passenger',
 									{
@@ -1010,16 +987,12 @@ export const PassengerDetailsForm = forwardRef<
 									}
 								);
 							}
-							console.log("All passengers successfully updated");
 						} catch (error) {
 							console.error("Error updating previous passengers:", error);
 						}
 					}
-				} else {
-					console.log("Not authenticated, skipping API calls");
 				}
 
-				console.log("Saving passengers to store:", storedPassengers);
 				addPassengers(storedPassengers);
 
 				return {
@@ -1039,14 +1012,12 @@ export const PassengerDetailsForm = forwardRef<
 
 				return { success: false, passengers: [] };
 			} finally {
-				console.log("Setting isSavingPassengers back to false");
 				setIsSavingPassengers(false);
 			}
 		},
 
 		// FIXED: Restore passenger data with correct gender handling
 		restorePassengerData: (passengers: StoredPassenger[]) => {
-			console.log("PassengerDetailsForm: Restoring passenger data", passengers);
 
 			if (!passengers || passengers.length === 0) return;
 
@@ -1054,28 +1025,32 @@ export const PassengerDetailsForm = forwardRef<
 
 			passengers.forEach(passenger => {
 				if (passenger.seatId) {
-					// Ensure gender is converted to 1 or 2 integer value
-					const genderValue = typeof passenger.gender === 'string'
-						? (passenger.gender === 'female' ? 1 : 2)
-						: passenger.gender;
+					// Convert integer gender to string value
+					const genderValue = typeof passenger.gender === 'number'
+						? (passenger.gender === 1 ? "Female" : "Male")
+						: (passenger.gender === 'female' ? "Female" : "Male");
 
 					newMap[passenger.seatId] = {
-						seatId: passenger.seatId,
-						seatNo: passenger.seatNo || passenger.seatId,
-						gender: genderValue as 1 | 2,
-						name: passenger.name,
-						family: passenger.family,
-						nationalId: passenger.nationalId,
-						phone: passenger.birthDate || '',
-						previousPassengerId: passenger.isFromPreviousPassengers ? passenger.id : undefined
+						fName: passenger.name,
+						lName: passenger.family,
+						gender: genderValue,
+						nationalCode: passenger.nationalId,
+						address: "",
+						dateOfBirth: passenger.birthDate || "",
+						phoneNumber: "",
+						email: "",
+						seatNo: passenger.seatNo?.toString() || passenger.seatId.toString(),
+						seatID: passenger.seatId,
+						previousPassengerId: passenger.isFromPreviousPassengers ? passenger.id : undefined,
+						validationErrors: {},
+						hasInvalidNationalCode: false
 					};
 
-					// FIXED: Convert integer gender to string for seat state
+					// Convert string gender to lowercase for seat state
 					if (passenger.gender !== undefined) {
-						const genderValue = typeof passenger.gender === 'string'
-							? (passenger.gender === 'female' ? 1 : 2)
-							: passenger.gender;
-						const genderString = genderValue === 1 ? "female" : "male";
+						const genderString = typeof passenger.gender === 'number'
+							? (passenger.gender === 1 ? "female" : "male")
+							: (passenger.gender === "Female" ? "female" : "male");
 						directlyUpdateSeatGender(passenger.seatId, genderString);
 					}
 				}
@@ -1088,7 +1063,6 @@ export const PassengerDetailsForm = forwardRef<
 				onValidationChange(validationResult);
 			}
 
-			console.log("Passenger data restored successfully");
 		}
 	}));
 
@@ -1117,30 +1091,43 @@ export const PassengerDetailsForm = forwardRef<
 						</div>
 					</div>
 
-					{/* FIXED: Passenger Forms with correct gender conversion */}
-					{Object.values(passengerMap).map((passenger, index) => (
-						<div key={passenger.seatId}>
-							<PassengerForm
-								{...passenger}
-								gender={passenger.gender === 1 ? "female" : "male"} // Convert integer to string for form
-								onRemove={handleRemovePassenger}
-								onChange={handleChange}
-								isLastPassenger={index + 1 === Object.values(passengerMap).length}
-								onCheckboxChange={handleCheckboxChange}
-								showAdditionalContact={showAdditionalContact}
-								onGenderChange={(seatId: number, gender: "male" | "female") => {
-									// Convert string gender to integer
-									const genderInt = gender === "female" ? 1 : 2;
-									handleGenderChange(seatId, genderInt);
-								}}
-								onPrevPassengerClick={() => handlePreviousPassengersClick(passenger.seatId)}
-								validationErrors={passenger.validationErrors}
-							/>
-							{index + 1 < Object.values(passengerMap).length && (
-								<div className="w-full bg-[#B9B9B9] h-[1px] my-4" />
-							)}
-						</div>
-					))}
+					{/* Passenger Forms with correct field mapping */}
+					{Object.values(passengerMap).map((passenger, index) => {
+
+						// Create a unique key that changes when passenger data changes
+						const passengerDataHash = `${passenger.fName}-${passenger.lName}-${passenger.nationalCode}-${passenger.dateOfBirth}-${passenger.previousPassengerId}`;
+						const uniqueKey = `${passenger.seatID}-${passengerDataHash}`;
+
+						return (
+							<div key={uniqueKey}>
+								<PassengerForm
+									key={`passenger-form-${passenger.seatID}-${passenger.previousPassengerId || 'new'}-${passenger.fName}-${passenger.lName}`}
+									seatId={passenger.seatID}
+									seatNo={passenger.seatNo}
+									gender={passenger.gender === "Female" ? "female" : "male"} // Convert to lowercase for form
+									fName={passenger.fName}
+									lName={passenger.lName}
+									nationalCode={passenger.nationalCode}
+									phoneNumber={passenger.dateOfBirth} // Form expects birth date in YYYYMMDD format in phoneNumber field
+									onRemove={handleRemovePassenger}
+									onChange={handleChange}
+									isLastPassenger={index + 1 === Object.values(passengerMap).length}
+									onCheckboxChange={handleCheckboxChange}
+									showAdditionalContact={showAdditionalContact}
+									onGenderChange={(seatId: number, gender: "male" | "female") => {
+										// Convert to proper case
+										const genderProper = gender === "female" ? "Female" : "Male";
+										handleGenderChange(seatId, genderProper);
+									}}
+									onPrevPassengerClick={() => handlePreviousPassengersClick(passenger.seatID)}
+									validationErrors={passenger.validationErrors}
+								/>
+								{index + 1 < Object.values(passengerMap).length && (
+									<div className="w-full bg-[#B9B9B9] h-[1px] my-4" />
+								)}
+							</div>
+						);
+					})}
 
 					{/* Previous Passengers Dialog */}
 					<EnhancedPreviousPassengersDialog
@@ -1308,19 +1295,13 @@ export const PassengerDetailsForm = forwardRef<
 							email={additionalEmail}
 							phone={additionalPhone}
 							onEmailChange={(email) => {
-								console.log('📧 Additional Email changed:', email);
 								setAdditionalEmail(email);
 								updateUserField('additionalEmail', email);
-								console.log('✅ Updated UserStore additionalEmail to:', email);
-								// Debug: Check UserStore state immediately after update
 								setTimeout(() => debugUserStore(), 100);
 							}}
 							onPhoneChange={(phone) => {
-								console.log('📱 Additional Phone changed:', phone);
 								setAdditionalPhone(phone);
 								updateUserField('additionalPhone', phone);
-								console.log('✅ Updated UserStore additionalPhone to:', phone);
-								// Debug: Check UserStore state immediately after update
 								setTimeout(() => debugUserStore(), 100);
 							}}
 							onValidationChange={handleAdditionalContactValidationChange}

@@ -56,14 +56,17 @@ interface MediumBusLayoutProps {
 	spaces?: SpaceConfig[];
 	guidanceData?: GuidanceData,
 	noBorder?: boolean; // Add this prop
-
+	token?: string; // Token for seat map fetching
+	ticketId?: string; // Ticket ID for seat map fetching
 }
 
 export const MediumBusLayout: React.FC<MediumBusLayoutProps> = ({
 	maxSelectable,
 	spaces = [],
 	guidanceData,
-	noBorder
+	noBorder,
+	token: propToken,
+	ticketId: propTicketId
 }) => {
 	// State for seats and error management
 	const [seats, setSeats] = useState<SeatDetail[][]>([]);
@@ -73,8 +76,15 @@ export const MediumBusLayout: React.FC<MediumBusLayoutProps> = ({
 
 	// Helper function to get parameters from store
 	const getTicketParams = () => {
-		// First try to get from Zustand store
+		// First try to get from props (highest priority)
+		if (propToken && propTicketId) {
+			console.log('🔍 MediumBusLayout - Using props:', { token: propToken, ticketId: propTicketId });
+			return { ticketId: propTicketId, token: propToken };
+		}
+
+		// Then try to get from Zustand store
 		if (storedTicketId && storedToken) {
+			console.log('🔍 MediumBusLayout - Using store:', { token: storedToken, ticketId: storedTicketId });
 			return { ticketId: storedTicketId, token: storedToken };
 		}
 
