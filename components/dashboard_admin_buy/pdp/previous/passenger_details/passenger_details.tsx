@@ -236,6 +236,7 @@ export const PassengerDetailsForm = forwardRef<
 		}
 	}, []); // Only run on mount
 
+
 	// Get user profile to retrieve user ID
 	const getUserProfile = async (token: string, refreshToken: string): Promise<string | null> => {
 		try {
@@ -268,9 +269,83 @@ export const PassengerDetailsForm = forwardRef<
 		}
 	};
 
+	// Track if we've attempted initial restoration
+	const hasAttemptedRestoration = useRef(false);
+
+	// Get passenger store to watch for changes
+	const storePassengers = usePassengerStore(state => state.passengers);
+
+	// Reset restoration flag when passengers are cleared (e.g., when ticket changes)
+	useEffect(() => {
+		const { getSessionPassengers } = usePassengerStore.getState();
+		const sessionPassengers = getSessionPassengers();
+		if (sessionPassengers.length === 0 && hasAttemptedRestoration.current) {
+			console.log('🔄 Passengers cleared - resetting restoration flag');
+			hasAttemptedRestoration.current = false;
+		}
+	}, [storePassengers.length]);
+
 	// Initialize passenger data for each selected seat - only when seats are added/removed
 	useEffect(() => {
-		// Add new seats to the map without recreating the entire map
+		// Try to restore from PassengerStore on first render if seats exist
+		if (!hasAttemptedRestoration.current && selectedSeats.length > 0) {
+			hasAttemptedRestoration.current = true;
+
+			const { getSessionPassengers } = usePassengerStore.getState();
+			const sessionPassengers = getSessionPassengers();
+
+			console.log('🔍 Checking for saved passengers on mount:', sessionPassengers.length);
+
+			if (sessionPassengers.length > 0) {
+				console.log('✨ Found saved passengers, restoring...');
+				// Restore data immediately
+				const restoredMap: Record<number, PassengerData> = {};
+
+				sessionPassengers.forEach(passenger => {
+					if (passenger.seatId) {
+						let genderValue: string;
+						if (typeof passenger.gender === 'number') {
+							genderValue = passenger.gender === 2 ? "male" : "female";
+						} else {
+							const genderStr = String(passenger.gender);
+							genderValue = genderStr.toLowerCase() === 'female' ? "female" : "male";
+						}
+
+						restoredMap[passenger.seatId] = {
+							fName: passenger.name,
+							lName: passenger.family,
+							gender: genderValue,
+							nationalCode: passenger.nationalId,
+							address: "",
+							dateOfBirth: passenger.birthDate || "",
+							phoneNumber: "",
+							email: "",
+							seatNo: passenger.seatNo?.toString() || passenger.seatId.toString(),
+							seatID: passenger.seatId,
+							previousPassengerId: passenger.isFromPreviousPassengers ? passenger.id : undefined,
+							validationErrors: {},
+							hasInvalidNationalCode: false
+						};
+
+						// Update seat gender
+						let genderString: "male" | "female";
+						if (typeof passenger.gender === 'number') {
+							genderString = passenger.gender === 2 ? "male" : "female";
+						} else {
+							const genderStr = String(passenger.gender);
+							genderString = genderStr.toLowerCase() === "female" ? "female" : "male";
+						}
+						directlyUpdateSeatGender(passenger.seatId, genderString);
+					}
+				});
+
+				setPassengerMap(restoredMap);
+				console.log('✅ Auto-restored', Object.keys(restoredMap).length, 'passengers from store');
+				return; // Don't initialize empty forms
+			}
+		}
+
+		// Normal initialization for new seats
 		setPassengerMap(prev => {
 			const newMap = { ...prev };
 			let hasChanges = false;
@@ -1015,19 +1090,19 @@ export const PassengerDetailsForm = forwardRef<
 						const genderString = passenger.gender.toLowerCase() === "male" ? "2" : "1";
 
 						const newPassengerPayload: any = {
-							FName: passenger.fName,
-							LName: passenger.lName,
-							NationalCode: passenger.nationalCode,
-							Gender: genderString, // String: "2"=male, "1"=female
+							fName: passenger.fName,
+							lName: passenger.lName,
+							nationalCode: passenger.nationalCode,
+							gender: genderString, // String: "2"=male, "1"=female
 						};
 
 						// Add optional fields only if they exist
-						if (formattedBirthDate) newPassengerPayload.DateOfBirth = formattedBirthDate;
-						if (passenger.address) newPassengerPayload.Address = passenger.address;
-						if (passenger.phoneNumber) newPassengerPayload.PhoneNumber = passenger.phoneNumber;
-						if (passenger.email) newPassengerPayload.Email = passenger.email;
-						if (passenger.seatNo) newPassengerPayload.SeatNo = passenger.seatNo.toString();
-						if (passenger.seatID !== undefined) newPassengerPayload.SeatID = passenger.seatID;
+						if (formattedBirthDate) newPassengerPayload.dateOfBirth = formattedBirthDate;
+						if (passenger.address) newPassengerPayload.address = passenger.address;
+						if (passenger.phoneNumber) newPassengerPayload.phoneNumber = passenger.phoneNumber;
+						if (passenger.email) newPassengerPayload.email = passenger.email;
+						if (passenger.seatNo) newPassengerPayload.seatNo = passenger.seatNo.toString();
+						if (passenger.seatID !== undefined) newPassengerPayload.seatID = passenger.seatID;
 
 						newPassengers.push(newPassengerPayload);
 					}
@@ -1044,15 +1119,15 @@ export const PassengerDetailsForm = forwardRef<
 							console.log('🔄 Creating new passengers (bulk):', {
 								count: newPassengers.length,
 								passengers: newPassengers.map(p => ({
-									name: `${p.FName} ${p.LName}`,
-									gender: p.Gender
+									name: `${p.fName} ${p.lName}`,
+									gender: p.gender
 								}))
 							});
 
 							const response = await axios.post(
 								'https://api.bilit4u.com/admin/api/v1/admin/passengers/bulk',
 								{
-									Passengers: newPassengers
+									passengers: newPassengers  // lowercase "passengers"
 								},
 								{
 									headers: {
@@ -1110,7 +1185,20 @@ export const PassengerDetailsForm = forwardRef<
 					}
 				}
 
+				console.log('💾 Saving to PassengerStore:', {
+					count: storedPassengers.length,
+					passengers: storedPassengers.map(p => ({
+						name: `${p.name} ${p.family}`,
+						seatId: p.seatId,
+						gender: p.gender
+					}))
+				});
+
 				addPassengers(storedPassengers);
+
+				// Verify data was saved
+				const savedPassengers = usePassengerStore.getState().getSessionPassengers();
+				console.log('✅ Verified in PassengerStore:', savedPassengers.length, 'passengers');
 
 				return {
 					success: true,
@@ -1135,8 +1223,12 @@ export const PassengerDetailsForm = forwardRef<
 
 		// FIXED: Restore passenger data with correct gender handling
 		restorePassengerData: (passengers: StoredPassenger[]) => {
+			console.log('🔄 restorePassengerData called with:', passengers.length, 'passengers');
 
-			if (!passengers || passengers.length === 0) return;
+			if (!passengers || passengers.length === 0) {
+				console.log('⚠️ No passengers to restore');
+				return;
+			}
 
 			const newMap: Record<number, PassengerData> = {};
 
@@ -1145,12 +1237,18 @@ export const PassengerDetailsForm = forwardRef<
 					// Convert integer gender to string value (2=male/true, 1=female/false)
 					let genderValue: string;
 					if (typeof passenger.gender === 'number') {
-						genderValue = passenger.gender === 2 ? "Male" : "Female";
+						genderValue = passenger.gender === 2 ? "male" : "female";
 					} else {
 						// Handle string gender
 						const genderStr = String(passenger.gender);
-						genderValue = genderStr.toLowerCase() === 'female' ? "Female" : "Male";
+						genderValue = genderStr.toLowerCase() === 'female' ? "female" : "male";
 					}
+
+					console.log(`📝 Restoring passenger for seat ${passenger.seatId}:`, {
+						name: `${passenger.name} ${passenger.family}`,
+						gender: genderValue,
+						nationalCode: passenger.nationalId
+					});
 
 					newMap[passenger.seatId] = {
 						fName: passenger.name,
@@ -1177,11 +1275,14 @@ export const PassengerDetailsForm = forwardRef<
 						const genderStr = String(passenger.gender);
 						genderString = genderStr.toLowerCase() === "female" ? "female" : "male";
 					}
+
+					console.log(`🎨 Updating seat ${passenger.seatId} gender to: ${genderString}`);
 					directlyUpdateSeatGender(passenger.seatId, genderString);
 				}
 			});
 
 			setPassengerMap(newMap);
+			console.log('✅ PassengerMap updated with', Object.keys(newMap).length, 'passengers');
 
 			const validationResult = validateForm();
 			if (onValidationChange) {

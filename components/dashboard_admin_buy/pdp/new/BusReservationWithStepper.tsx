@@ -311,7 +311,7 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 	const urlToken = params.token as string;
 	const urlTicketId = params.ticketId as string;
 
-	// Log component initialization
+	// Log component initialization and cleanup on unmount
 	useEffect(() => {
 		console.log('🚀 PDP Component - BusReservationWithStepper initialized:', {
 			urlToken,
@@ -323,11 +323,36 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 		// Log that we're ready to use real serviceData
 		console.log('🚀 PDP Component - Ready to fetch and use real serviceData from API');
+
+		// Cleanup function: Clear passengers when component unmounts (user navigates away)
+		return () => {
+			console.log('🧹 Cleaning up: Clearing passengers on component unmount');
+			const { clearPassengers } = usePassengerStore.getState();
+			clearPassengers();
+		};
 	}, []);
 
 	// Store states
 	const { selectedSeats, serviceData, ticketId, token, setSrvTicket } = useTicketStore();
-	const { passengers, addPassengers } = usePassengerStore();
+	const { passengers, addPassengers, clearPassengers } = usePassengerStore();
+
+	// Clear passengers when ticket changes
+	const prevTicketIdRef = useRef<string | null>(null);
+	useEffect(() => {
+		const currentTicketId = urlTicketId || ticketId;
+
+		// If we had a previous ticket and now it's different, clear passengers
+		if (prevTicketIdRef.current && prevTicketIdRef.current !== currentTicketId) {
+			console.log('🎫 Ticket changed: Clearing passengers', {
+				previousTicket: prevTicketIdRef.current,
+				newTicket: currentTicketId
+			});
+			clearPassengers();
+		}
+
+		// Update the ref with current ticket
+		prevTicketIdRef.current = currentTicketId;
+	}, [urlTicketId, ticketId]);
 
 	// State for service details
 	const [srvDetails, setSrvDetails] = useState<any>(null);
@@ -619,7 +644,27 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 	const prevStep = () => {
 		if (currentStep > 0) {
-			setCurrentStep(currentStep - 1);
+			const previousStep = currentStep - 1;
+			setCurrentStep(previousStep);
+
+			// Restore passenger data when going back to step 0
+			if (previousStep === 0 && passengerDetailsRef.current) {
+				// Use setTimeout to ensure component has mounted before restoring
+				setTimeout(() => {
+					console.log('🔄 Restoring passenger data from store...');
+					const { getSessionPassengers } = usePassengerStore.getState();
+					const sessionPassengers = getSessionPassengers();
+
+					console.log('📊 Session passengers to restore:', sessionPassengers);
+
+					if (sessionPassengers.length > 0 && passengerDetailsRef.current) {
+						passengerDetailsRef.current.restorePassengerData(sessionPassengers);
+						console.log('✅ Passenger data restored:', sessionPassengers.length, 'passengers');
+					} else {
+						console.log('⚠️ No passenger data to restore');
+					}
+				}, 100);
+			}
 		}
 	};
 

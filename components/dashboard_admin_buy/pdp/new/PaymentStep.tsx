@@ -20,9 +20,15 @@ interface PaymentStepProps {
 
 export function PaymentStep({ onBack, onPaymentSuccess }: PaymentStepProps) {
 	const { toast } = useToast();
-	const { serviceData } = useTicketStore();
+	const { serviceData, srvTicket } = useTicketStore();
 	const { passengers, currentSessionId } = usePassengerStore();
 	const { user } = useUserStore();
+
+	console.log('📊 Payment Step - Store data:', {
+		serviceData,
+		srvTicket,
+		passengerCount: passengers.filter(p => p.sessionId === currentSessionId).length
+	});
 
 	// Get session from localStorage
 	const getAuthSession = () => {
@@ -86,28 +92,28 @@ export function PaymentStep({ onBack, onPaymentSuccess }: PaymentStepProps) {
 			});
 
 			// Prepare SrvTicket data from serviceData with proper format
-			const srvTicket = {
-				logoUrl: serviceData.LogoUrl || '',
-				srvNo: serviceData.ServiceNo || '',
-				srvName: serviceData.Description || 'Bus Service',
-				coToken: serviceData.RequestToken || '',
-				departureTime: serviceData.DepartTime || '',
+			const srvTicketPayload = {
+				logoUrl: serviceData?.LogoUrl || '',
+				srvNo: serviceData?.ServiceNo || '',
+				srvName: serviceData?.Description || 'Bus Service',
+				coToken: serviceData?.RequestToken || '',
+				departureTime: serviceData?.DepartTime || '',
 				arrivalTime: '', // Will be calculated
-				departureCity: serviceData.SrcCityName || '',
-				arrivalCity: serviceData.DesCityName || '',
-				departureDate: serviceData.DepartDate || '',
+				departureCity: serviceData?.SrcCityName || '',
+				arrivalCity: serviceData?.DesCityName || '',
+				departureDate: serviceData?.DepartDate || '',
 				arrivalDate: '', // Will be calculated
-				price: Number(serviceData.FullPrice) || 0,
-				companyName: serviceData.CoName || '',
-				isCharger: Boolean(serviceData.IsCharger),
-				isMonitor: Boolean(serviceData.IsMonitor),
-				isBed: Boolean(serviceData.IsBed),
-				isVIP: Boolean(serviceData.IsVIP),
-				isSofa: Boolean(serviceData.IsSofa),
-				isMono: Boolean(serviceData.IsMono),
-				isAirConditionType: Boolean(serviceData.IsAirConditionType),
-				srcCityCode: serviceData.SrcCityCode || '',
-				desCityCode: serviceData.DesCityCode || '',
+				price: pricePerTicket, // Use calculated price
+				companyName: serviceData?.CoName || '',
+				isCharger: Boolean(serviceData?.IsCharger),
+				isMonitor: Boolean(serviceData?.IsMonitor),
+				isBed: Boolean(serviceData?.IsBed),
+				isVIP: Boolean(serviceData?.IsVIP),
+				isSofa: Boolean(serviceData?.IsSofa),
+				isMono: Boolean(serviceData?.IsMono),
+				isAirConditionType: Boolean(serviceData?.IsAirConditionType),
+				srcCityCode: serviceData?.SrcCityCode || '',
+				desCityCode: serviceData?.DesCityCode || '',
 				travelDuration: ''
 			};
 
@@ -115,10 +121,10 @@ export function PaymentStep({ onBack, onPaymentSuccess }: PaymentStepProps) {
 			const payload = {
 				order: {
 					userID: parseInt(String(user?.userId || "0")),
-					description: `Bus ticket from ${srvTicket.departureCity} to ${srvTicket.arrivalCity}`,
+					description: `Bus ticket from ${srvTicketPayload.departureCity} to ${srvTicketPayload.arrivalCity}`,
 					addedPhone: user?.additionalPhone || user?.phoneNumber || '',
 					addedEmail: user?.additionalEmail || user?.email || '',
-					SrvTicket: srvTicket,
+					SrvTicket: srvTicketPayload,
 					passengers: formattedPassengers,
 					OrderAssetId: null
 				},
@@ -233,9 +239,30 @@ export function PaymentStep({ onBack, onPaymentSuccess }: PaymentStepProps) {
 		}
 	};
 
-	const pricePerTicket = Math.floor((Number(serviceData?.FullPrice) || 0) / 10);
+	// Calculate price - FullPrice is already the price per ticket
+	// Try serviceData first, then srvTicket as fallback (both have FullPrice and Price with capital letters)
+	const pricePerTicket = Number(
+		serviceData?.FullPrice ||
+		serviceData?.Price ||
+		srvTicket?.FullPrice ||
+		srvTicket?.Price ||
+		0
+	);
 	const totalPrice = storedPassengers.length * pricePerTicket;
 	const formattedPrice = new Intl.NumberFormat('fa-IR').format(totalPrice);
+
+	console.log('💰 Payment Step - Price calculation:', {
+		serviceData: serviceData,
+		srvTicket: srvTicket,
+		serviceDataFullPrice: serviceData?.FullPrice,
+		serviceDataPrice: serviceData?.Price,
+		srvTicketFullPrice: srvTicket?.FullPrice,
+		srvTicketPrice: srvTicket?.Price,
+		pricePerTicket,
+		passengerCount: storedPassengers.length,
+		totalPrice,
+		formattedPrice
+	});
 
 	return (
 		<div className="w-full" dir="rtl">
@@ -276,25 +303,25 @@ export function PaymentStep({ onBack, onPaymentSuccess }: PaymentStepProps) {
 						{/* Data Grid Header */}
 						<div className="grid grid-cols-7 gap-3 px-6 py-4 bg-[#F8F9FA] border-b border-gray-200">
 							<div className="col-span-1 text-right">
-								<span className="text-sm font-IranYekanBold text-gray-700">قیمت بلیط</span>
-							</div>
-							<div className="col-span-1 text-right">
-								<span className="text-sm font-IranYekanBold text-gray-700">شماره صندلی</span>
-							</div>
-							<div className="col-span-1 text-right">
-								<span className="text-sm font-IranYekanBold text-gray-700">تاریخ تولد</span>
-							</div>
-							<div className="col-span-1 text-right">
-								<span className="text-sm font-IranYekanBold text-gray-700">جنسیت</span>
-							</div>
-							<div className="col-span-1 text-right">
-								<span className="text-sm font-IranYekanBold text-gray-700">کد ملی</span>
+								<span className="text-sm font-IranYekanBold text-gray-700">نام</span>
 							</div>
 							<div className="col-span-1 text-right">
 								<span className="text-sm font-IranYekanBold text-gray-700">نام خانوادگی</span>
 							</div>
 							<div className="col-span-1 text-right">
-								<span className="text-sm font-IranYekanBold text-gray-700">نام</span>
+								<span className="text-sm font-IranYekanBold text-gray-700">کد ملی</span>
+							</div>
+							<div className="col-span-1 text-right">
+								<span className="text-sm font-IranYekanBold text-gray-700">جنسیت</span>
+							</div>
+							<div className="col-span-1 text-right">
+								<span className="text-sm font-IranYekanBold text-gray-700">تاریخ تولد</span>
+							</div>
+							<div className="col-span-1 text-right">
+								<span className="text-sm font-IranYekanBold text-gray-700">شماره صندلی</span>
+							</div>
+							<div className="col-span-1 text-right">
+								<span className="text-sm font-IranYekanBold text-gray-700">قیمت بلیط</span>
 							</div>
 						</div>
 
@@ -307,32 +334,7 @@ export function PaymentStep({ onBack, onPaymentSuccess }: PaymentStepProps) {
 								>
 									<div className="col-span-1 flex items-center justify-start">
 										<span className="text-sm font-IranYekanBold text-gray-800">
-											{new Intl.NumberFormat('fa-IR').format(pricePerTicket)} تومان
-										</span>
-									</div>
-									<div className="col-span-1 flex items-center justify-start">
-										<span className="text-sm font-IranYekanRegular text-gray-700">
-											{passenger.seatNo}
-										</span>
-									</div>
-									<div className="col-span-1 flex items-center justify-start">
-										<span className="text-sm font-IranYekanRegular text-gray-700">
-											{passenger.birthDate || '-'}
-										</span>
-									</div>
-									<div className="col-span-1 flex items-center justify-start">
-										<span className={cn(
-											"px-3 py-1 rounded-md text-xs font-IranYekanBold inline-block",
-											passenger.gender === 1
-												? "bg-blue-50 text-blue-600 border border-blue-200"
-												: "bg-pink-50 text-pink-600 border border-pink-200"
-										)}>
-											{passenger.gender === 1 ? 'مرد' : 'زن'}
-										</span>
-									</div>
-									<div className="col-span-1 flex items-center justify-start">
-										<span className="text-sm font-IranYekanRegular text-gray-700">
-											{passenger.nationalId || '-'}
+											{passenger.name}
 										</span>
 									</div>
 									<div className="col-span-1 flex items-center justify-start">
@@ -341,8 +343,33 @@ export function PaymentStep({ onBack, onPaymentSuccess }: PaymentStepProps) {
 										</span>
 									</div>
 									<div className="col-span-1 flex items-center justify-start">
+										<span className="text-sm font-IranYekanRegular text-gray-700">
+											{passenger.nationalId || '-'}
+										</span>
+									</div>
+									<div className="col-span-1 flex items-center justify-start">
+										<span className={cn(
+											"px-3 py-1 rounded-md text-xs font-IranYekanBold inline-block",
+											passenger.gender === 2
+												? "bg-blue-50 text-blue-600 border border-blue-200"
+												: "bg-pink-50 text-pink-600 border border-pink-200"
+										)}>
+											{passenger.gender === 2 ? 'مرد' : 'زن'}
+										</span>
+									</div>
+									<div className="col-span-1 flex items-center justify-start">
+										<span className="text-sm font-IranYekanRegular text-gray-700">
+											{passenger.birthDate || '-'}
+										</span>
+									</div>
+									<div className="col-span-1 flex items-center justify-start">
+										<span className="text-sm font-IranYekanRegular text-gray-700">
+											{passenger.seatNo}
+										</span>
+									</div>
+									<div className="col-span-1 flex items-center justify-start">
 										<span className="text-sm font-IranYekanBold text-gray-800">
-											{passenger.name}
+											{new Intl.NumberFormat('fa-IR').format(pricePerTicket)} تومان
 										</span>
 									</div>
 								</div>
