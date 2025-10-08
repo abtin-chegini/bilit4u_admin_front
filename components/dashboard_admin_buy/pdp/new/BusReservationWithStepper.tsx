@@ -6,6 +6,7 @@ import { ArrowRight } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Session } from '@supabase/supabase-js';
 import { PaymentStep } from './PaymentStep';
+import { InvoiceStep } from './InvoiceStep';
 
 // Import exact same components from previous PDP
 import { BusLayout } from "@/components/dashboard_admin_buy/pdp/previous/bus_layout/bus_layout";
@@ -17,6 +18,7 @@ import TicketCardLg, { ServiceDetails } from '@/components/dashboard_admin_buy/p
 // Import stores
 import { useTicketStore } from '@/store/TicketStore';
 import { usePassengerStore, StoredPassenger } from '@/store/PassengerStore';
+import { useUserStore } from '@/store/UserStore';
 import { useScreenSize } from '@/hooks/useScreenSize';
 
 // Import UI components
@@ -292,11 +294,19 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 		isAnyPassengerValid: false,
 		allPassengersValid: false
 	});
+	const [showSeatsOccupiedDialog, setShowSeatsOccupiedDialog] = useState(false);
+	const [occupiedMessage, setOccupiedMessage] = useState('');
+	const [paymentData, setPaymentData] = useState<any>(null);
 
 	// Ref to access PassengerDetailsForm methods
 	const passengerDetailsRef = useRef<{
 		savePassengers: () => Promise<{ success: boolean; passengers: StoredPassenger[] }>;
 		restorePassengerData: (passengers: StoredPassenger[]) => void;
+	}>(null);
+
+	// Ref to access PaymentStep methods
+	const paymentStepRef = useRef<{
+		initiatePayment: () => void;
 	}>(null);
 
 	// Hooks
@@ -731,6 +741,141 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 				console.log('✅ Passengers saved successfully');
 
+				// Reserve seats before going to payment step
+				try {
+					console.log('🎫 Calling seat reservation API...');
+
+					// Get auth session
+					const sessionData = typeof window !== 'undefined' ? localStorage.getItem('auth_session') : null;
+					const session = sessionData ? JSON.parse(sessionData) : null;
+
+					if (!session?.access_token) {
+						throw new Error('لطفا وارد حساب کاربری خود شوید');
+					}
+
+					// Get user data
+					const { user } = useUserStore.getState();
+
+					// Prepare seats (comma-separated seat numbers)
+					const seats = selectedSeats.map(s => s.seatNo).join(',');
+
+					// Prepare passengers JSON
+					const passengersArray = result.passengers.map((p: any) => ({
+						FirstName: p.name,
+						LastName: p.family,
+						NationalCode: p.nationalId,
+						Bdate: p.birthDate,
+						Gender: p.gender // Already in correct format (2=male, 1=female)
+					}));
+					const passengersJson = JSON.stringify(passengersArray);
+
+					// Prepare payload
+					const reservationPayload = {
+						srvNo: urlTicketId || ticketId, // ticketId from route
+						coToken: urlToken || token, // token from route
+						seats: seats,
+						contactPhone: user?.phoneNumber || '09122028679',
+						passengersJson: passengersJson,
+						callBackUrl: typeof window !== 'undefined' ? `${window.location.origin}/invoice` : '',
+						paymentType: 1 // Wallet payment
+					};
+
+					console.log('📤 Seat Reservation API Request:');
+					console.log('🔗 URL:', 'https://api.bilit4u.com/admin/api/v1/orders/seat/reserve');
+					console.log('📦 Payload:', {
+						...reservationPayload,
+						passengersJsonParsed: JSON.parse(passengersJson) // Show parsed version for readability
+					});
+					console.log('🔑 Headers:', {
+						'Token': `${session.access_token.substring(0, 20)}...`,
+						'Content-Type': 'application/json'
+					});
+
+					// Call reservation API
+					const reservationResponse = await axios.post(
+						'https://api.bilit4u.com/admin/api/v1/orders/seat/reserve',
+						reservationPayload,
+						{
+							headers: {
+								'Token': session.access_token,
+								'Content-Type': 'application/json'
+							}
+						}
+					);
+
+					console.log('📥 Seat Reservation API Response:');
+					console.log('✅ Full Response:', reservationResponse.data);
+					console.log('✅ Success:', reservationResponse.data.success);
+					console.log('✅ Message:', reservationResponse.data.message);
+					console.log('✅ RedisKey:', reservationResponse.data.redisKey);
+
+					// Check if reservation was successful
+					if (reservationResponse.data.success === false) {
+						console.warn('⚠️ Seat reservation failed - Seats may be occupied');
+
+						// Show dialog for occupied seats
+						setOccupiedMessage(
+							reservationResponse.data.message ||
+							'صندلی‌های انتخابی قبلاً رزرو شده‌اند. لطفاً صندلی‌های دیگری را انتخاب کنید.'
+						);
+						setShowSeatsOccupiedDialog(true);
+						return; // Don't proceed
+					}
+
+					// Store redisKey in localStorage for payment step
+					if (reservationResponse.data.redisKey) {
+						const redisKey = reservationResponse.data.redisKey;
+						localStorage.setItem('redisKey', redisKey);
+						console.log('═══════════════════════════════════════════');
+						console.log('💾 REDIS KEY STORAGE');
+						console.log('═══════════════════════════════════════════');
+						console.log('RedisKey:', redisKey);
+						console.log('Stored in localStorage with key: "redisKey"');
+						console.log('═══════════════════════════════════════════');
+					} else {
+						console.warn('⚠️ No redisKey in reservation response!');
+					}
+
+					console.log('🎉 Seat reservation successful!');
+					toast({
+						title: "صندلی رزرو شد",
+						description: "صندلی‌های شما با موفقیت رزرو شد",
+						variant: "default"
+					});
+
+				} catch (reservationError) {
+					console.error('❌ Error reserving seats:');
+					console.error('Error details:', reservationError);
+
+					if (axios.isAxiosError(reservationError)) {
+						console.error('Response data:', reservationError.response?.data);
+						console.error('Response status:', reservationError.response?.status);
+
+						// Check if the error response indicates seats are occupied
+						if (reservationError.response?.data?.success === false) {
+							setOccupiedMessage(
+								reservationError.response.data.message ||
+								'صندلی‌های انتخابی قبلاً رزرو شده‌اند. لطفاً صندلی‌های دیگری را انتخاب کنید.'
+							);
+							setShowSeatsOccupiedDialog(true);
+							return;
+						}
+					}
+
+					const errorMessage = axios.isAxiosError(reservationError)
+						? reservationError.response?.data?.message || reservationError.message
+						: reservationError instanceof Error
+							? reservationError.message
+							: 'خطا در رزرو صندلی';
+
+					toast({
+						title: "خطا در رزرو صندلی",
+						description: errorMessage,
+						variant: "destructive"
+					});
+					return; // Don't proceed if reservation fails
+				}
+
 			} catch (error) {
 				console.error('❌ Error saving passengers:', error);
 				toast({
@@ -970,15 +1115,24 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 						{/* Payment Step Component */}
 						<PaymentStep
+							ref={paymentStepRef}
 							onBack={() => {
 								console.log('Back to seat selection clicked');
 								prevStep();
 							}}
-							onPaymentSuccess={() => {
-								// Handle payment success if needed
-								console.log('Payment successful');
+							onPaymentSuccess={(data) => {
+								console.log('💰 Payment successful, moving to invoice step');
+								setPaymentData(data);
+								nextStep();
 							}}
 						/>
+					</div>
+				);
+
+			case 2: // Invoice step
+				return (
+					<div dir="rtl" className="max-w-[1200px] mx-auto mt-6">
+						<InvoiceStep paymentData={paymentData} />
 					</div>
 				);
 
@@ -1085,19 +1239,28 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 				</div>
 			)}
 
-			{/* Navigation Buttons */}
-			{!hideContinueButton && currentStep < steps.length && (
+			{/* Navigation Buttons - Hide on invoice step (step 2) */}
+			{!hideContinueButton && currentStep < 2 && (
 				<div className="flex justify-between items-center gap-4">
 					{/* Next Step Button - Left Side */}
-					{currentStep < steps.length - 1 && (
-						<Button
-							onClick={handleContinue}
-							disabled={isLoading}
-							className="bg-[#0D5990] hover:bg-[#0A4A7A] font-iran-yekan text-white px-8 py-3 text-lg font-medium cursor-pointer hover:cursor-pointer disabled:cursor-not-allowed"
-						>
-							{isLoading ? 'در حال پردازش...' : 'تایید و ادامه'}
-						</Button>
-					)}
+					<Button
+						onClick={() => {
+							if (currentStep === 1) {
+								// Payment step - show confirmation dialog
+								console.log('تایید و پرداخت clicked');
+								if (paymentStepRef.current) {
+									paymentStepRef.current.initiatePayment();
+								}
+							} else {
+								// Other steps - normal continue
+								handleContinue();
+							}
+						}}
+						disabled={isLoading}
+						className="bg-[#0D5990] hover:bg-[#0A4A7A] font-iran-yekan text-white px-8 py-3 text-lg font-medium cursor-pointer hover:cursor-pointer disabled:cursor-not-allowed"
+					>
+						{isLoading ? 'در حال پردازش...' : (currentStep === 1 ? 'تایید و پرداخت' : 'تایید و ادامه')}
+					</Button>
 
 					{/* Back Button - Right Side */}
 					<Button
@@ -1117,6 +1280,34 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 				</div>
 			)}
 
+			{/* Seats Occupied Dialog */}
+			<Dialog open={showSeatsOccupiedDialog} onOpenChange={setShowSeatsOccupiedDialog}>
+				<DialogContent className="sm:max-w-md" dir="rtl">
+					<DialogHeader>
+						<DialogTitle className="text-xl font-IranYekanBold text-red-600 flex items-center gap-2">
+							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+								<path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+							</svg>
+							صندلی‌ها رزرو شده
+						</DialogTitle>
+						<DialogDescription className="text-base text-gray-700 font-IranYekanRegular mt-4">
+							{occupiedMessage}
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="mt-6">
+						<Button
+							onClick={() => {
+								setShowSeatsOccupiedDialog(false);
+								// Optionally refresh the seat map or go back to seat selection
+								router.push('/dashboard');
+							}}
+							className="w-full bg-[#0D5990] hover:bg-[#0A4A7A] text-white font-IranYekanBold"
+						>
+							بازگشت به انتخاب صندلی
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 		</div>
 	);
