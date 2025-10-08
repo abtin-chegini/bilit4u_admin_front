@@ -48,14 +48,9 @@ const stepsData = [
         component: <div>انتخاب صندلی و مشخصات مسافران Component</div>,
     },
     {
-        label: "تأیید اطلاعات",
-        icon: ConfirmIcon,
-        component: <div>تأیید اطلاعات Component</div>,
-    },
-    {
-        label: "پرداخت",
+        label: "تایید اطلاعات و پرداخت",
         icon: PaymentIcon,
-        component: <div>پرداخت Component</div>,
+        component: <div>تایید اطلاعات و پرداخت Component</div>,
     },
     {
         label: "صدور بلیط",
@@ -117,10 +112,10 @@ export default function Steps({ active = 1, onTimeUp }: StepsProps) {
                         })}
                     </div>
 
-                    {/* Progress bar below the labels */}
+                    {/* Progress bar below the labels - RTL direction (right to left) */}
                     <div className="relative w-full h-1 bg-gray-200 rounded-full">
                         <div
-                            className="absolute top-0 left-0 h-full bg-[#0D5990] rounded-full transition-all duration-300 ease-in-out"
+                            className="absolute top-0 right-0 h-full bg-[#0D5990] rounded-full transition-all duration-300 ease-in-out"
                             style={{
                                 width: `${(active / (stepsData.length - 1)) * 100}%`,
                             }}

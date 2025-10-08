@@ -550,7 +550,7 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 	const session = getAuthSession();
 
-	// Step configuration - 2 steps: seat selection + passenger details, then payment
+	// Step configuration - 3 steps: seat selection + passenger details, payment, ticket issuance
 	const steps = [
 		{
 			id: 'seat-selection-and-passenger-details',
@@ -560,9 +560,15 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 		},
 		{
 			id: 'payment',
-			title: 'پرداخت',
-			description: 'مبلغ بلیط را پرداخت کنید',
+			title: 'تایید اطلاعات و پرداخت',
+			description: 'اطلاعات را بررسی کنید و پرداخت را انجام دهید',
 			component: 'payment'
+		},
+		{
+			id: 'ticket-issuance',
+			title: 'صدور بلیط',
+			description: 'بلیط شما صادر می‌شود',
+			component: 'ticket-issuance'
 		}
 	];
 
