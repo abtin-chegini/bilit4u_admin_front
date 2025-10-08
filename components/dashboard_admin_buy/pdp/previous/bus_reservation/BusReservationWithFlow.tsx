@@ -7,6 +7,7 @@ import { MobileBusLayout } from "@/components/dashboard_admin_buy/pdp/previous/b
 import { PassengerDetailsForm } from '@/components/dashboard_admin_buy/pdp/previous/passenger_details/passenger_details';
 import { useTicketStore } from '@/store/TicketStore';
 import { usePassengerStore, StoredPassenger } from '@/store/PassengerStore';
+import { useUserStore } from '@/store/UserStore';
 import { useScreenSize } from '@/hooks/useScreenSize';
 import { useToast } from "@/hooks/use-toast";
 import { Session } from '@supabase/supabase-js'
@@ -22,6 +23,10 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { cn } from '@/lib/utils';
+import { ArrowLeft } from 'lucide-react';
 import axios from 'axios';
 
 export function toPersianDigits(num: number | string): string {
@@ -82,6 +87,16 @@ const BusReservationWithFlow = forwardRef<any, BusReservationWithFlowProps>(({
 		isAnyPassengerValid: false,
 		allPassengersValid: false
 	});
+
+	// Step management
+	const [currentStep, setCurrentStep] = React.useState(1); // 1: Seat Selection, 2: Payment
+
+	// Payment page states
+	const [showPaymentDialog, setShowPaymentDialog] = React.useState(false);
+	const [paymentMethod, setPaymentMethod] = React.useState<'bank' | 'wallet'>('bank');
+	const [paymentGateway, setPaymentGateway] = React.useState<'sep'>('sep');
+	const [paymentProgress, setPaymentProgress] = React.useState(0);
+	const [isPaymentSubmitting, setIsPaymentSubmitting] = React.useState(false);
 
 	// Reference to the PassengerDetailsForm component
 	const detailsFormRef = React.useRef<{
@@ -157,13 +172,8 @@ const BusReservationWithFlow = forwardRef<any, BusReservationWithFlowProps>(({
 			});
 
 			setTimeout(() => {
-				console.log("⏰ Navigation timeout triggered - Proceeding to next step");
-				if (onContinue) {
-					console.log("➡️ Calling parent onContinue with seats:", selectedSeats);
-					onContinue(selectedSeats);
-				} else {
-					console.log("⚠️ No parent onContinue handler, would navigate to checkout");
-				}
+				console.log("⏰ Navigation timeout triggered - Moving to payment step");
+				setCurrentStep(2); // Move to payment step
 				setSubmissionState({ isSubmitting: false, progress: 0 });
 			}, 300);
 
@@ -195,7 +205,10 @@ const BusReservationWithFlow = forwardRef<any, BusReservationWithFlowProps>(({
 	}), []); // Empty dependencies to prevent infinite loops
 
 	// Get data from stores
-	const { selectedSeats, clearSelectedSeats, handleSeatClick, removeSelectedSeat } = useTicketStore();
+	const { selectedSeats, clearSelectedSeats, handleSeatClick, removeSelectedSeat, serviceData } = useTicketStore();
+	const { passengers, currentSessionId } = usePassengerStore();
+	const { user } = useUserStore();
+	const storedPassengers = passengers.filter(p => p.sessionId === currentSessionId);
 	const screenSize = useScreenSize();
 	const isMedium = screenSize === 'md';
 	const isMobile = screenSize === 'xs' || screenSize === 'sm';
@@ -272,6 +285,201 @@ const BusReservationWithFlow = forwardRef<any, BusReservationWithFlowProps>(({
 		}
 	}, [router]);
 
+	// Payment logic
+	const handleBackToSeatSelection = () => {
+		setCurrentStep(1);
+	};
+
+	const handlePaymentSubmit = async () => {
+		if (isPaymentSubmitting) return;
+
+		setIsPaymentSubmitting(true);
+		setPaymentProgress(10);
+		setShowPaymentDialog(true);
+
+		try {
+			setPaymentProgress(20);
+
+			// Check if we have the necessary data
+			if (!session?.access_token) {
+				throw new Error('لطفا وارد حساب کاربری خود شوید');
+			}
+
+			if (!serviceData) {
+				throw new Error('اطلاعات سرویس یافت نشد');
+			}
+
+			if (storedPassengers.length === 0) {
+				throw new Error('لطفا حداقل یک مسافر اضافه کنید');
+			}
+
+			// Format passengers according to the required structure
+			const formattedPassengers = storedPassengers.map(passenger => {
+				return {
+					userID: parseInt(String(user?.userId || "0")),
+					fName: passenger.name || '',
+					lName: passenger.family || '',
+					gender: passenger.gender === 2,
+					nationalCode: passenger.nationalId || '',
+					address: '',
+					dateOfBirth: passenger.birthDate || '13720704',
+					phoneNumber: user?.additionalPhone || user?.phoneNumber || '',
+					email: user?.additionalEmail || user?.email || '',
+					seatID: String(passenger.seatId || ''),
+					seatNo: String(passenger.seatNo || '')
+				};
+			});
+
+			// Prepare SrvTicket data from serviceData with proper format
+			const srvTicket = {
+				logoUrl: serviceData.LogoUrl || '',
+				srvNo: serviceData.ServiceNo || '',
+				srvName: serviceData.Description || 'Bus Service',
+				coToken: serviceData.RequestToken || '',
+				departureTime: serviceData.DepartTime || '',
+				arrivalTime: '', // Will be calculated
+				departureCity: serviceData.SrcCityName || '',
+				arrivalCity: serviceData.DesCityName || '',
+				departureDate: serviceData.DepartDate || '',
+				arrivalDate: '', // Will be calculated
+				price: Number(serviceData.FullPrice) || 0,
+				companyName: serviceData.CoName || '',
+				isCharger: Boolean(serviceData.IsCharger),
+				isMonitor: Boolean(serviceData.IsMonitor),
+				isBed: Boolean(serviceData.IsBed),
+				isVIP: Boolean(serviceData.IsVIP),
+				isSofa: Boolean(serviceData.IsSofa),
+				isMono: Boolean(serviceData.IsMono),
+				isAirConditionType: Boolean(serviceData.IsAirConditionType),
+				srcCityCode: serviceData.SrcCityCode || '',
+				desCityCode: serviceData.DesCityCode || '',
+				travelDuration: ''
+			};
+
+			// Prepare request payload
+			const payload = {
+				order: {
+					userID: parseInt(String(user?.userId || "0")),
+					description: `Bus ticket from ${srvTicket.departureCity} to ${srvTicket.arrivalCity}`,
+					addedPhone: user?.additionalPhone || user?.phoneNumber || '',
+					addedEmail: user?.additionalEmail || user?.email || '',
+					SrvTicket: srvTicket,
+					passengers: formattedPassengers,
+					OrderAssetId: null
+				},
+				token: session.access_token,
+				refreshToken: session.refresh_token || ''
+			};
+
+			setPaymentProgress(30);
+
+			// Create order
+			const orderResponse = await axios.post(
+				'https://api.bilit4u.com/order/api/v1/order/add',
+				payload,
+				{
+					headers: {
+						'Content-Type': 'application/json',
+					}
+				}
+			);
+
+			setPaymentProgress(60);
+
+			if (!orderResponse.data.success) {
+				throw new Error(orderResponse.data.message || 'Failed to create order');
+			}
+
+			const refNum = orderResponse.data.refNum || orderResponse.data.refNumber || orderResponse.data.referenceNumber;
+
+			if (!refNum) {
+				throw new Error('Reference number not found in response');
+			}
+
+			setPaymentProgress(70);
+
+			// Get redisKey from localStorage
+			const redisKey = typeof window !== 'undefined' ? localStorage.getItem('redisKey') : null;
+			const origin = typeof window !== 'undefined' ? window.location.origin : '';
+
+			const buyTicketPayload = {
+				token: session.access_token,
+				refreshToken: session.refresh_token || '',
+				BusTicket: {
+					CoToken: serviceData.RequestToken || '',
+					SrvNo: serviceData.ServiceNo || '',
+					RefNum: refNum,
+					redisKey: redisKey || '',
+					CallBackUrl: `${origin}/invoice/${refNum}`,
+					PhoneNumber: user?.phoneNumber || '09122028679',
+				}
+			};
+
+			setPaymentProgress(80);
+
+			// Request payment URL
+			const buyResponse = await axios.post(
+				'https://api.bilit4u.com/order/api/v1/tickets/buy',
+				buyTicketPayload,
+				{
+					headers: {
+						'Content-Type': 'application/json',
+					}
+				}
+			);
+
+			let paymentUrl = null;
+			if (buyResponse.data?.paymentUrl) {
+				paymentUrl = buyResponse.data.paymentUrl;
+			} else if (buyResponse.data?.redirectUrl) {
+				paymentUrl = buyResponse.data.redirectUrl;
+			} else if (buyResponse.data?.url) {
+				paymentUrl = buyResponse.data.url;
+			}
+
+			if (!paymentUrl) {
+				throw new Error('Payment URL not found in response');
+			}
+
+			setPaymentProgress(90);
+
+			toast({
+				title: "انتقال به درگاه پرداخت",
+				description: "در حال انتقال به درگاه پرداخت...",
+				variant: "default",
+			});
+
+			setTimeout(() => {
+				setPaymentProgress(100);
+				window.location.href = paymentUrl;
+			}, 2000);
+
+		} catch (error) {
+			console.error("Payment error:", error);
+			setShowPaymentDialog(false);
+
+			if (axios.isAxiosError(error)) {
+				const errorMessage = error.response?.data?.message ||
+					error.message ||
+					"متأسفانه مشکلی در پردازش پرداخت به وجود آمد";
+
+				toast({
+					title: "خطا در پرداخت",
+					description: errorMessage,
+					variant: "destructive",
+				});
+			} else {
+				toast({
+					title: "خطا در پرداخت",
+					description: error instanceof Error ? error.message : "متأسفانه مشکلی در پردازش پرداخت به وجود آمد. لطفا دوباره تلاش کنید.",
+					variant: "destructive",
+				});
+			}
+		} finally {
+			setIsPaymentSubmitting(false);
+		}
+	};
+
 	// Memoize guidance data to prevent unnecessary re-renders
 	const guidanceData = React.useMemo(() => ({
 		selectedSeats,
@@ -309,8 +517,322 @@ const BusReservationWithFlow = forwardRef<any, BusReservationWithFlowProps>(({
 		}
 	}, [isMobile, isMedium, maxSelectable, guidanceData]);
 
+	// Payment page component
+	const renderPaymentPage = () => {
+		const pricePerTicket = Math.floor((Number(serviceData?.FullPrice) || 0) / 10);
+		const totalPrice = storedPassengers.length * pricePerTicket;
+		const formattedPrice = new Intl.NumberFormat('fa-IR').format(totalPrice);
+
+		return (
+			<div className="min-h-screen bg-gray-50 p-4 md:p-6" dir="rtl">
+				<div className="max-w-2xl mx-auto">
+					{/* Step Indicator */}
+					<div className="flex items-center justify-center mb-6">
+						<div className="flex items-center space-x-4">
+							{/* Step 1: Seat Selection */}
+							<div className="flex items-center">
+								<div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-[#0D5990] text-white">
+									1
+								</div>
+								<span className="mr-2 text-sm font-medium text-[#0D5990]">
+									انتخاب صندلی
+								</span>
+							</div>
+
+							{/* Connector */}
+							<div className="w-12 h-0.5 bg-[#0D5990]" />
+
+							{/* Step 2: Payment */}
+							<div className="flex items-center">
+								<div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-[#0D5990] text-white">
+									2
+								</div>
+								<span className="mr-2 text-sm font-medium text-[#0D5990]">
+									پرداخت
+								</span>
+							</div>
+						</div>
+					</div>
+
+					{/* Time Remaining Header */}
+					<div className="mb-6 text-left">
+						<span className="text-sm text-gray-600">زمان باقیمانده: </span>
+						<span className="text-sm font-bold text-gray-800">۱۴:۲۲</span>
+						<svg className="inline-block w-4 h-4 mr-1 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+					</div>
+
+					{/* Payment Information Card */}
+					<Card className="mb-6 bg-white shadow-sm border-0">
+						<CardHeader className="pb-4">
+							<CardTitle className="text-lg font-bold text-[#0D5990]">اطلاعات پرداخت</CardTitle>
+							<CardDescription className="text-sm text-gray-500">
+								خلاصه سفارش و اطلاعات پرداخت
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="pt-0">
+							<div className="space-y-4">
+								<div className="flex justify-between items-center">
+									<span className="text-sm text-gray-600">تعداد مسافران:</span>
+									<span className="text-sm font-bold">{storedPassengers.length} نفر</span>
+								</div>
+								<div className="flex justify-between items-center">
+									<span className="text-sm text-gray-600">قیمت هر بلیط:</span>
+									<span className="text-sm font-bold">{new Intl.NumberFormat('fa-IR').format(pricePerTicket)} تومان</span>
+								</div>
+								<Separator className="my-3" />
+								<div className="flex justify-between items-center">
+									<span className="text-base font-bold text-gray-800">مبلغ قابل پرداخت:</span>
+									<span className="text-lg font-bold text-[#0D5990]">{formattedPrice} تومان</span>
+								</div>
+							</div>
+						</CardContent>
+					</Card>
+
+					{/* Payment Method Card */}
+					<Card className="mb-6 bg-white shadow-sm border-0">
+						<CardHeader className="pb-4">
+							<CardTitle className="text-lg font-bold text-[#0D5990]">روش پرداخت</CardTitle>
+							<CardDescription className="text-sm text-gray-500">
+								لطفاً روش پرداخت خود را انتخاب کنید
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="pt-0">
+							<div className="space-y-3">
+								{/* Bank Payment Option */}
+								<div
+									className={cn(
+										"border rounded-lg p-4 cursor-pointer transition-all",
+										paymentMethod === 'bank'
+											? "border-[#0D5990] bg-[#F0F7FF]"
+											: "border-gray-200 hover:border-gray-300"
+									)}
+									onClick={() => setPaymentMethod('bank')}
+								>
+									<div className="flex items-center gap-3">
+										<div className={cn(
+											"w-5 h-5 rounded-full border-2 flex items-center justify-center",
+											paymentMethod === 'bank' ? "border-[#0D5990]" : "border-gray-300"
+										)}>
+											{paymentMethod === 'bank' && (
+												<div className="w-2.5 h-2.5 rounded-full bg-[#0D5990]" />
+											)}
+										</div>
+										<div className="flex items-center gap-2">
+											<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+												<path d="M19 8H5C4.44772 8 4 8.44772 4 9V17C4 17.5523 4.44772 18 5 18H19C19.5523 18 20 17.5523 20 17V9C20 8.44772 19.5523 8 19 8Z" stroke="#0D5990" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+												<path d="M4 11H20" stroke="#0D5990" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+												<path d="M8 15H10" stroke="#0D5990" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+											</svg>
+											<span className="font-bold text-gray-800">پرداخت بانکی</span>
+										</div>
+									</div>
+									<p className="text-xs text-gray-500 mt-2 pr-8">انتقال به درگاه پرداخت بانکی</p>
+								</div>
+
+								{/* Wallet Payment Option */}
+								<div
+									className={cn(
+										"border rounded-lg p-4 cursor-pointer transition-all",
+										paymentMethod === 'wallet'
+											? "border-[#0D5990] bg-[#F0F7FF]"
+											: "border-gray-200 hover:border-gray-300"
+									)}
+									onClick={() => setPaymentMethod('wallet')}
+								>
+									<div className="flex items-center gap-3">
+										<div className={cn(
+											"w-5 h-5 rounded-full border-2 flex items-center justify-center",
+											paymentMethod === 'wallet' ? "border-[#0D5990]" : "border-gray-300"
+										)}>
+											{paymentMethod === 'wallet' && (
+												<div className="w-2.5 h-2.5 rounded-full bg-[#0D5990]" />
+											)}
+										</div>
+										<div className="flex items-center gap-2">
+											<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+												<path d="M16 12H18C18.5523 12 19 11.5523 19 11V8C19 7.44772 18.5523 7 18 7H6C5.44772 7 5 7.44772 5 8V16C5 16.5523 5.44772 17 6 17H18C18.5523 17 19 16.5523 19 16V13C19 12.4477 18.5523 12 18 12H16V12Z" stroke="#0D5990" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+												<path d="M16 9H16.01" stroke="#0D5990" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+												<path d="M12 14.5C12.8284 14.5 13.5 13.8284 13.5 13C13.5 12.1716 12.8284 11.5 12 11.5C11.1716 11.5 10.5 12.1716 10.5 13C10.5 13.8284 11.1716 14.5 12 14.5Z" stroke="#0D5990" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+											</svg>
+											<span className="font-bold text-gray-800">کیف پول</span>
+										</div>
+									</div>
+									<p className="text-xs text-gray-500 mt-2 pr-8">پرداخت از موجودی کیف پول</p>
+								</div>
+							</div>
+						</CardContent>
+					</Card>
+
+					{/* Payment Gateway Selection */}
+					{paymentMethod === 'bank' && (
+						<Card className="mb-6 bg-white shadow-sm border-0">
+							<CardHeader className="pb-4">
+								<CardTitle className="text-lg font-bold text-[#0D5990]">انتخاب درگاه پرداخت</CardTitle>
+								<CardDescription className="text-sm text-gray-500">
+									درگاه پرداخت مورد نظر خود را انتخاب کنید
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="pt-0">
+								<div className="border rounded-lg p-4 border-[#0D5990] bg-[#F0F7FF]">
+									<div className="flex items-center gap-3">
+										<div className="w-5 h-5 rounded-full border-2 border-[#0D5990] flex items-center justify-center">
+											<div className="w-2.5 h-2.5 rounded-full bg-[#0D5990]" />
+										</div>
+										<div className="flex items-center gap-2">
+											<div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center border">
+												<span className="text-[#0D5990] font-bold text-lg">سپ</span>
+											</div>
+											<span className="font-bold text-gray-800">درگاه سپ</span>
+										</div>
+									</div>
+									<p className="text-xs text-gray-500 mt-2 pr-8">پرداخت از طریق درگاه امن سپ</p>
+								</div>
+							</CardContent>
+						</Card>
+					)}
+
+					{/* Passenger Information Card */}
+					<Card className="mb-6 bg-white shadow-sm border-0">
+						<CardHeader className="pb-4">
+							<CardTitle className="text-lg font-bold text-[#0D5990]">اطلاعات مسافران</CardTitle>
+						</CardHeader>
+						<CardContent className="pt-0">
+							<div className="space-y-3">
+								{storedPassengers.map((passenger, index) => (
+									<div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+										<div className="flex justify-between items-center">
+											<span className="text-sm font-bold text-gray-700">
+												{passenger.name} {passenger.family}
+											</span>
+											<span className="text-xs text-gray-500">
+												صندلی {passenger.seatNo}
+											</span>
+										</div>
+										<div className="text-xs text-gray-500 mt-1">
+											{passenger.nationalId && `کد ملی: ${passenger.nationalId}`}
+										</div>
+									</div>
+								))}
+							</div>
+						</CardContent>
+					</Card>
+
+					{/* Action Buttons */}
+					<div className="bg-[#0D5990] p-6 rounded-lg">
+						<div className="flex flex-col-reverse sm:flex-row justify-between gap-4">
+							<Button
+								variant="outline"
+								onClick={handleBackToSeatSelection}
+								disabled={isPaymentSubmitting}
+								className="bg-white border-white text-[#0D5990] hover:bg-gray-50 transition-colors flex items-center justify-center px-6 py-3 text-sm font-bold"
+							>
+								<ArrowLeft className="ml-2 w-4 h-4" />
+								بازگشت به مرحله قبل
+							</Button>
+
+							<Button
+								onClick={handlePaymentSubmit}
+								disabled={isPaymentSubmitting}
+								className="bg-white text-[#0D5990] hover:bg-gray-50 transition-colors px-6 py-3 text-sm font-bold flex items-center justify-center"
+							>
+								{isPaymentSubmitting ? (
+									<>
+										<svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-[#0D5990]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+											<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+											<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+										</svg>
+										در حال پردازش پرداخت...
+									</>
+								) : (
+									<>
+										پرداخت و صدور بلیط
+										<svg className="mr-2 w-4 h-4" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+											<path d="M15 19L8 12L15 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+										</svg>
+									</>
+								)}
+							</Button>
+						</div>
+					</div>
+				</div>
+
+				{/* Payment Processing Dialog */}
+				<Dialog open={showPaymentDialog} onOpenChange={(open) => {
+					if (!isPaymentSubmitting) setShowPaymentDialog(open);
+				}}>
+					<DialogContent className="sm:max-w-md text-center" dir="rtl">
+						<DialogTitle className="text-lg font-bold text-[#0D5990]">
+							در حال پردازش پرداخت
+						</DialogTitle>
+						<DialogDescription className="text-sm text-gray-500">
+							در حال انتقال به صفحه‌ی پرداخت می‌باشید
+						</DialogDescription>
+
+						<div className="my-6 flex flex-col items-center justify-center">
+							<div className="w-16 h-16 relative mb-4">
+								<svg className="animate-spin w-full h-full text-[#0D5990]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+									<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+									<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+								</svg>
+							</div>
+
+							{/* Progress bar */}
+							<div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+								<div
+									className="bg-[#0D5990] h-2 rounded-full transition-all duration-300"
+									style={{ width: `${paymentProgress}%` }}
+								></div>
+							</div>
+
+							<p className="text-sm text-gray-600 mb-2">پیشرفت: {paymentProgress}%</p>
+						</div>
+					</DialogContent>
+				</Dialog>
+			</div>
+		);
+	};
+
+	// Show payment page if we're on step 2
+	if (currentStep === 2) {
+		return renderPaymentPage();
+	}
+
 	return (
 		<div className="max-w-[1200px] mx-auto mt-6 flex flex-col gap-6">
+
+			{/* Step Indicator */}
+			<div className="flex items-center justify-center mb-4">
+				<div className="flex items-center space-x-4">
+					{/* Step 1: Seat Selection */}
+					<div className="flex items-center">
+						<div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${currentStep === 1 ? 'bg-[#0D5990] text-white' : 'bg-gray-200 text-gray-600'
+							}`}>
+							1
+						</div>
+						<span className={`mr-2 text-sm font-medium ${currentStep === 1 ? 'text-[#0D5990]' : 'text-gray-500'
+							}`}>
+							انتخاب صندلی
+						</span>
+					</div>
+
+					{/* Connector */}
+					<div className={`w-12 h-0.5 ${currentStep >= 2 ? 'bg-[#0D5990]' : 'bg-gray-200'}`} />
+
+					{/* Step 2: Payment */}
+					<div className="flex items-center">
+						<div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${currentStep === 2 ? 'bg-[#0D5990] text-white' : 'bg-gray-200 text-gray-600'
+							}`}>
+							2
+						</div>
+						<span className={`mr-2 text-sm font-medium ${currentStep === 2 ? 'text-[#0D5990]' : 'text-gray-500'
+							}`}>
+							پرداخت
+						</span>
+					</div>
+				</div>
+			</div>
 
 			{/* Timeout Dialog */}
 			<Dialog open={isTimeoutDialogOpen} onOpenChange={setIsTimeoutDialogOpen}>

@@ -202,6 +202,9 @@ export default function TicketPurchasePage() {
 						router.push('/dashboard');
 					}}
 					hideContinueButton={false}
+					onContinue={() => {
+						console.log('Continue clicked, proceeding to payment step');
+					}}
 				/>
 			</div>
 		</div>

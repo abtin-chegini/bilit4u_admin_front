@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Session } from '@supabase/supabase-js';
+import { PaymentStep } from './PaymentStep';
 
 // Import exact same components from previous PDP
 import { BusLayout } from "@/components/dashboard_admin_buy/pdp/previous/bus_layout/bus_layout";
@@ -272,17 +273,18 @@ interface BusReservationWithStepperProps {
 	onTimeExpire?: () => void;
 	seatPriceServiceDetail?: any;
 	hideContinueButton?: boolean;
+	onContinue?: () => void;
 }
 
 const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 	onTimeExpire,
 	seatPriceServiceDetail,
 	hideContinueButton = false,
+	onContinue,
 }) => {
 	// State management
 	const [currentStep, setCurrentStep] = useState(0);
 	const [isLoading, setIsLoading] = useState(false);
-	const [showUpdateDialog, setShowUpdateDialog] = useState(false);
 	const [validationData, setValidationData] = useState<{
 		isAnyPassengerValid: boolean;
 		allPassengersValid: boolean;
@@ -548,7 +550,7 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 	const session = getAuthSession();
 
-	// Step configuration - 4 steps with combined seat selection and passenger details
+	// Step configuration - 2 steps: seat selection + passenger details, then payment
 	const steps = [
 		{
 			id: 'seat-selection-and-passenger-details',
@@ -557,22 +559,10 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 			component: 'seat-selection-and-passenger-details'
 		},
 		{
-			id: 'confirmation',
-			title: 'تأیید اطلاعات',
-			description: 'اطلاعات را بررسی و تأیید کنید',
-			component: 'confirmation'
-		},
-		{
 			id: 'payment',
 			title: 'پرداخت',
 			description: 'مبلغ بلیط را پرداخت کنید',
 			component: 'payment'
-		},
-		{
-			id: 'ticket-issuance',
-			title: 'صدور بلیط',
-			description: 'بلیط شما صادر شده است',
-			component: 'ticket-issuance'
 		}
 	];
 
@@ -608,18 +598,17 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 					});
 					return false;
 				}
-				// For now, allow proceeding if seats are selected (we'll add passenger validation later)
+				// Check if all passengers have valid information
+				if (!validationData.allPassengersValid) {
+					toast({
+						title: "خطا",
+						description: "لطفا اطلاعات تمام مسافران را تکمیل کنید",
+						variant: "destructive"
+					});
+					return false;
+				}
 				console.log('Seats selected:', filteredSeats.length);
 				return true;
-
-			case 1: // Confirmation
-				return true; // Always valid if we reached this step
-
-			case 2: // Payment
-				return true; // Payment validation would go here
-
-			case 3: // Ticket issuance
-				return true; // Always valid if we reached this step
 
 			default:
 				return false;
@@ -632,17 +621,14 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 		console.log('Current step:', currentStep);
 		console.log('Selected seats:', selectedSeats);
 
-		// Show the dialog but don't proceed to next step
-		setShowUpdateDialog(true);
-		setIsLoading(true);
-		console.log('Dialog state set to true - showing update message');
+		// Validate current step before proceeding
+		const isValid = await validateCurrentStep();
+		if (!isValid) {
+			return;
+		}
 
-		// Keep dialog open for longer to show the message
-		setTimeout(() => {
-			setIsLoading(false);
-			setShowUpdateDialog(false);
-			console.log('Dialog closed - next steps not ready yet');
-		}, 3000);
+		// Proceed to next step
+		nextStep();
 	};
 
 	// Handle validation change from passenger details
@@ -818,82 +804,65 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 					</div>
 				);
 
-			case 1: // Confirmation - Show selected seats and passenger info
+			case 1: // Payment step
 				return (
-					<div className="w-full space-y-4">
-						<Card>
-							<CardHeader>
-								<CardTitle className="text-lg font-iran-yekan-bold text-right">
-									تأیید اطلاعات سفر
-								</CardTitle>
-							</CardHeader>
-							<CardContent className="space-y-4">
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									<div className="bg-gray-50 p-4 rounded-lg">
-										<h3 className="font-iran-yekan-bold mb-2">اطلاعات سفر</h3>
-										<p className="text-sm text-gray-600">
-											مبدا: {seatPriceServiceDetail?.source || 'تهران'}
-										</p>
-										<p className="text-sm text-gray-600">
-											مقصد: {seatPriceServiceDetail?.destination || 'مشهد'}
-										</p>
-										<p className="text-sm text-gray-600">
-											تاریخ: {seatPriceServiceDetail?.date || 'امروز'}
-										</p>
-									</div>
-									<div className="bg-gray-50 p-4 rounded-lg">
-										<h3 className="font-iran-yekan-bold mb-2">صندلی‌های انتخاب شده</h3>
-										{selectedSeats.map((seat: any) => (
-											<p key={seat.id} className="text-sm text-gray-600">
-												صندلی {toPersianDigits(seat.seatNo || 0)}
-											</p>
-										))}
-									</div>
+					<div dir="rtl" className="max-w-[1200px] mx-auto mt-6 flex flex-col gap-6">
+						{/* Readonly Bus Layout */}
+						<div className="bg-white border border-gray-300 rounded-xl shadow-md p-6 relative">
+							<div className="mb-4 flex items-center justify-between border-b border-gray-200 pb-4">
+								<div className="flex items-center gap-3">
+									<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+										<path d="M4 16C4 16.5304 4.21071 17.0391 4.58579 17.4142C4.96086 17.7893 5.46957 18 6 18H18C18.5304 18 19.0391 17.7893 19.4142 17.4142C19.7893 17.0391 20 16.5304 20 16V6C20 5.46957 19.7893 4.96086 19.4142 4.58579C19.0391 4.21071 18.5304 4 18 4H6C5.46957 4 4.96086 4.21071 4.58579 4.58579C4.21071 4.96086 4 5.46957 4 6V16Z" stroke="#0D5990" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+										<path d="M9 4V18" stroke="#0D5990" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+										<path d="M15 4V18" stroke="#0D5990" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+									</svg>
+									<h3 className="text-lg font-IranYekanBold text-gray-800">نمای صندلی‌های انتخابی</h3>
 								</div>
-								<div className="bg-blue-50 p-4 rounded-lg">
-									<h3 className="font-iran-yekan-bold mb-2 text-blue-800">مبلغ کل</h3>
-									<p className="text-xl font-bold text-blue-600">
-										{formatPrice(seatPriceServiceDetail?.totalPrice || 0)} تومان
-									</p>
+								<div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg">
+									<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+										<path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#0D5990" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+										<path d="M12 16V12" stroke="#0D5990" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+										<path d="M12 8H12.01" stroke="#0D5990" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+									</svg>
+									<span className="text-xs font-IranYekanBold text-[#0D5990]">فقط نمایش</span>
 								</div>
-							</CardContent>
-						</Card>
-					</div>
-				);
-
-			case 2: // Payment
-				return (
-					<div className="w-full">
-						<Card>
-							<CardHeader>
-								<CardTitle className="text-lg font-iran-yekan-bold text-right">
-									پرداخت
-								</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<div className="text-center py-8">
-									<p className="text-gray-600 mb-4">
-										درگاه پرداخت در اینجا قرار می‌گیرد
-									</p>
-									<Button
-										onClick={handleContinue}
-										className="bg-green-600 hover:bg-green-700"
-									>
-										پرداخت {formatPrice(seatPriceServiceDetail?.totalPrice || 0)} تومان
-									</Button>
-								</div>
-							</CardContent>
-						</Card>
-					</div>
-				);
-
-			case 3: // Ticket issuance step
-				return (
-					<div dir="rtl" className="max-w-[1200px] mx-auto mt-6">
-						<div className="bg-white rounded-lg shadow-sm border p-6">
-							<h2 className="text-xl font-bold text-gray-800 mb-6 font-iran-yekan">صدور بلیط</h2>
-							<p className="text-gray-600 font-iran-yekan">بلیط شما با موفقیت صادر شد.</p>
+							</div>
+							{/* Readonly overlay - prevents all interactions */}
+							<div className="relative pointer-events-none select-none opacity-90">
+								{/* Render the appropriate bus layout component based on screen size */}
+								{isMobile ? (
+									<MobileBusLayout
+										maxSelectable={maxSelectable}
+										spaces={[]}
+										guidanceData={guidanceData}
+									/>
+								) : isTablet ? (
+									<MediumBusLayout
+										maxSelectable={maxSelectable}
+										spaces={[]}
+										guidanceData={guidanceData}
+									/>
+								) : (
+									<BusLayout
+										maxSelectable={maxSelectable}
+										spaces={[]}
+										guidanceData={guidanceData}
+									/>
+								)}
+							</div>
 						</div>
+
+						{/* Payment Step Component */}
+						<PaymentStep
+							onBack={() => {
+								console.log('Back to seat selection clicked');
+								prevStep();
+							}}
+							onPaymentSuccess={() => {
+								// Handle payment success if needed
+								console.log('Payment successful');
+							}}
+						/>
 					</div>
 				);
 
@@ -1001,21 +970,20 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 			)}
 
 			{/* Navigation Buttons */}
-			{!hideContinueButton && currentStep < 3 && (
+			{!hideContinueButton && currentStep < steps.length && (
 				<div className="flex justify-between items-center gap-4">
 					{/* Next Step Button - Left Side */}
-					<Button
-						onClick={handleContinue}
-						disabled={isLoading}
-						className="bg-[#0D5990] hover:bg-[#0A4A7A] font-iran-yekan text-white px-8 py-3 text-lg font-medium cursor-pointer hover:cursor-pointer disabled:cursor-not-allowed"
-					>
-						{isLoading ? 'در حال پردازش...' :
-							currentStep === 0 ? 'تأیید اطلاعات و ادامه' :
-								currentStep === 1 ? 'پرداخت و ادامه' :
-									currentStep === 2 ? 'صدور بلیط و ادامه' : 'ادامه'}
-					</Button>
+					{currentStep < steps.length - 1 && (
+						<Button
+							onClick={handleContinue}
+							disabled={isLoading}
+							className="bg-[#0D5990] hover:bg-[#0A4A7A] font-iran-yekan text-white px-8 py-3 text-lg font-medium cursor-pointer hover:cursor-pointer disabled:cursor-not-allowed"
+						>
+							{isLoading ? 'در حال پردازش...' : 'تایید و ادامه'}
+						</Button>
+					)}
 
-					{/* Back to Dashboard Button - Right Side */}
+					{/* Back Button - Right Side */}
 					<Button
 						variant="outline"
 						onClick={currentStep === 0 ? () => {
@@ -1033,26 +1001,6 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 				</div>
 			)}
 
-			{/* Update Dialog */}
-			<Dialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
-				<DialogContent className="max-w-md w-[90%] p-0 overflow-hidden">
-					<div className="bg-white rounded-lg p-8 text-center">
-						<div className="mb-4">
-							<div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
-								<svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-								</svg>
-							</div>
-							<DialogTitle className="text-lg font-IranYekanBold text-gray-900 mb-2">
-								در حال بروزرسانی هستیم
-							</DialogTitle>
-							<p className="text-gray-600 font-IranYekanRegular">
-								لطفا کمی صبر کنید...
-							</p>
-						</div>
-					</div>
-				</DialogContent>
-			</Dialog>
 
 		</div>
 	);
