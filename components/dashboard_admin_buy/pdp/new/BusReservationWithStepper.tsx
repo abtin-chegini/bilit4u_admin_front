@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -293,7 +293,11 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 		allPassengersValid: false
 	});
 
-	// No need for step refs since we're using exact same components as previous PDP
+	// Ref to access PassengerDetailsForm methods
+	const passengerDetailsRef = useRef<{
+		savePassengers: () => Promise<{ success: boolean; passengers: StoredPassenger[] }>;
+		restorePassengerData: (passengers: StoredPassenger[]) => void;
+	}>(null);
 
 	// Hooks
 	const router = useRouter();
@@ -322,7 +326,7 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 	}, []);
 
 	// Store states
-	const { selectedSeats, serviceData, ticketId, token } = useTicketStore();
+	const { selectedSeats, serviceData, ticketId, token, setSrvTicket } = useTicketStore();
 	const { passengers, addPassengers } = usePassengerStore();
 
 	// State for service details
@@ -389,6 +393,10 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 					});
 
 					setSrvDetails(mappedServiceData);
+
+					// Save to ticket store and localforage
+					setSrvTicket(mappedServiceData);
+					console.log('✅ srvTicket data saved to store and localforage');
 				} catch (mappingError) {
 					console.error('❌ PDP Component - Error in mapping serviceData:', mappingError);
 					const errorMessage = mappingError instanceof Error ? mappingError.message : 'Unknown mapping error';
@@ -412,6 +420,10 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 						console.log('🔄 PDP Component - Mapped store serviceData for TicketCardLg:', mappedStoreData);
 						setSrvDetails(mappedStoreData);
+
+						// Save to ticket store and localforage
+						setSrvTicket(mappedStoreData);
+						console.log('✅ srvTicket data (from store fallback) saved to localforage');
 					} catch (storeMappingError) {
 						console.error('❌ PDP Component - Error mapping store serviceData:', storeMappingError);
 						const errorMessage = storeMappingError instanceof Error ? storeMappingError.message : 'Unknown store mapping error';
@@ -550,6 +562,32 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 	const session = getAuthSession();
 
+	// Load data from localStorage on component mount
+	useEffect(() => {
+		try {
+			const savedData = localStorage.getItem('bus_reservation_data');
+			if (savedData) {
+				const reservationData = JSON.parse(savedData);
+				console.log('📦 Loaded reservation data from localStorage:', reservationData);
+
+				// Check if the data is still valid (within 30 minutes)
+				const savedTime = new Date(reservationData.timestamp);
+				const now = new Date();
+				const diffMinutes = (now.getTime() - savedTime.getTime()) / (1000 * 60);
+
+				if (diffMinutes <= 30) {
+					console.log('✅ Reservation data is still valid');
+					// You can restore the data here if needed
+				} else {
+					console.log('⏰ Reservation data expired, clearing...');
+					localStorage.removeItem('bus_reservation_data');
+				}
+			}
+		} catch (error) {
+			console.error('❌ Error loading from localStorage:', error);
+		}
+	}, []);
+
 	// Step configuration - 3 steps: seat selection + passenger details, payment, ticket issuance
 	const steps = [
 		{
@@ -631,6 +669,32 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 		const isValid = await validateCurrentStep();
 		if (!isValid) {
 			return;
+		}
+
+		// Save passengers using the existing PassengerDetailsForm method
+		if (currentStep === 0 && passengerDetailsRef.current) {
+			console.log('📦 Calling savePassengers (only once on continue button)...');
+
+			try {
+				// Use the existing savePassengers method from PassengerDetailsForm
+				const result = await passengerDetailsRef.current.savePassengers();
+
+				if (!result.success) {
+					console.log('❌ Failed to save passengers');
+					return; // Don't proceed if save failed
+				}
+
+				console.log('✅ Passengers saved successfully');
+
+			} catch (error) {
+				console.error('❌ Error saving passengers:', error);
+				toast({
+					title: "خطا در ذخیره اطلاعات",
+					description: "لطفا مجددا تلاش کنید",
+					variant: "destructive"
+				});
+				return; // Don't proceed if there's an error
+			}
 		}
 
 		// Proceed to next step
@@ -797,6 +861,7 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 						<div className="bg-white rounded-lg shadow-sm border p-6 mt-6">
 							<h2 className="text-xl font-bold text-gray-800 mb-6 font-iran-yekan">مشخصات مسافران</h2>
 							<PassengerDetailsForm
+								ref={passengerDetailsRef}
 								seats={selectedSeats.map((seat: any) => ({
 									...seat,
 									seatNo: typeof seat.seatNo === 'string' ? parseInt(seat.seatNo) : seat.seatNo

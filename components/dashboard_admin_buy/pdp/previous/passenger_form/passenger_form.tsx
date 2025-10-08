@@ -150,6 +150,10 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 	useEffect(() => {
 		// Component initialization logic here if needed
 	}, []); // Empty dependency array means this runs only on mount
+
+	// Log received props
+	console.log(`📋 PassengerForm Seat ${seatId} received gender prop:`, gender, "type:", typeof gender);
+
 	// Local state to track gender selection for UI consistency
 	const [localGender, setLocalGender] = useState<"male" | "female">(gender);
 
@@ -188,10 +192,19 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 
 		return () => clearTimeout(timer);
 	}, [phoneNumber, seatId]);
-	// Keep local state in sync with props
+	// Keep local state in sync with props - always update when prop changes
 	useEffect(() => {
-		setLocalGender(gender);
-	}, [gender]);
+		// Normalize both for comparison
+		const normalizedPropGender = gender.toLowerCase() as "male" | "female";
+		const normalizedLocalGender = localGender.toLowerCase() as "male" | "female";
+
+		console.log(`🔄 Seat ${seatId}: Syncing gender prop "${gender}" (normalized: "${normalizedPropGender}") → local state "${localGender}" (normalized: "${normalizedLocalGender}")`);
+
+		if (normalizedLocalGender !== normalizedPropGender) {
+			console.log(`✅ Seat ${seatId}: Gender changing from "${localGender}" → "${normalizedPropGender}"`);
+			setLocalGender(normalizedPropGender);
+		}
+	}, [gender, seatId]);
 
 	// Force re-render when props change
 	useEffect(() => {
@@ -351,13 +364,13 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 					)}
 
 					{/* Second row: Mobile-optimized gender selection */}
-					<div className="flex gap-4 mt-3">
+					<div className="flex gap-4 mt-3 md:hidden">
 						{/* Female option - Large touch-friendly button */}
 						<div className="flex-1">
 							<input
 								id={`female-${seatId}`}
 								type="radio"
-								name={`gender-${seatId}`}
+								name={`gender-mobile-${seatId}`}
 								checked={localGender === "female"}
 								onChange={() => handleGenderChange("female")}
 								className="sr-only" // Hide actual radio but keep accessible
@@ -384,7 +397,7 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 							<input
 								id={`male-${seatId}`}
 								type="radio"
-								name={`gender-${seatId}`}
+								name={`gender-mobile-${seatId}`}
 								checked={localGender === "male"}
 								onChange={() => handleGenderChange("male")}
 								className="sr-only" // Hide actual radio but keep accessible
@@ -421,7 +434,7 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 								<label className="flex items-center gap-2 cursor-pointer">
 									<input
 										type="radio"
-										name={`gender-${seatId}`}
+										name={`gender-desktop-${seatId}`}
 										checked={localGender === "female"}
 										onChange={() => handleGenderChange("female")}
 										className="w-4 h-4 accent-[#0D5990] cursor-pointer"
@@ -432,7 +445,7 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 								<label className="flex items-center gap-2 cursor-pointer">
 									<input
 										type="radio"
-										name={`gender-${seatId}`}
+										name={`gender-desktop-${seatId}`}
 										checked={localGender === "male"}
 										onChange={() => handleGenderChange("male")}
 										className="w-4 h-4 accent-[#0D5990] cursor-pointer"

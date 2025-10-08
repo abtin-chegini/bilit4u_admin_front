@@ -165,8 +165,6 @@ export const PassengerDetailsForm = forwardRef<
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [activeSeatId, setActiveSeatId] = useState<number | null>(null);
 	const [assignedPassengerIds, setAssignedPassengerIds] = useState<(number | string)[]>([]);
-	const [phoneNumberDialogOpen, setPhoneNumberDialogOpen] = useState(false);
-	const [hasPhoneNumber, setHasPhoneNumber] = useState<boolean | null>(null);
 
 	const directlyUpdateSeatGender = useTicketStore(state => state.directlyUpdateSeatGender);
 	const { toast } = useToast();
@@ -253,13 +251,12 @@ export const PassengerDetailsForm = forwardRef<
 			// New admin API response structure
 			const profileData = profileResponse.data;
 
-			// Check if user has phone number (new API doesn't include phoneNumber)
-			// Since the new API doesn't have phoneNumber, we'll set it to false
-			setHasPhoneNumber(false);
+			// Admin panel - all users are registered, no need to check phone
+			const phoneNumber = profileData.phoneNumber || profileData.phone || '';
 
 			setUser({
 				firstName: profileData.name,
-				phoneNumber: '', // New API doesn't provide phoneNumber
+				phoneNumber: phoneNumber,
 				email: profileData.email,
 				profileData: profileData
 			});
@@ -276,10 +273,17 @@ export const PassengerDetailsForm = forwardRef<
 		const newMap: Record<number, PassengerData> = {};
 		selectedSeats.forEach((s) => {
 			const existing = passengerMap[s.id];
-			// Convert seat state to string gender value
-			const genderValue = s.state.includes("female") ? "Female" : "Male";
+			// Convert seat state to string gender value (lowercase)
+			const genderValue = s.state.includes("female") ? "female" : "male";
 			if (existing) {
-				newMap[s.id] = { ...existing, gender: genderValue, seatNo: s.seatNo?.toString() };
+				// Don't overwrite gender if passenger already has data (prevents overwriting after dialog selection)
+				const shouldUpdateGender = !existing.fName && !existing.lName && !existing.nationalCode && !existing.previousPassengerId;
+				newMap[s.id] = {
+					...existing,
+					gender: shouldUpdateGender ? genderValue : existing.gender,
+					seatNo: s.seatNo?.toString()
+				};
+				console.log(`🔄 Seat ${s.id}: Preserving gender="${existing.gender}", shouldUpdate=${shouldUpdateGender}`);
 			} else {
 				newMap[s.id] = {
 					fName: "",
@@ -301,10 +305,18 @@ export const PassengerDetailsForm = forwardRef<
 		setPassengerMap(newMap);
 	}, [seats, selectedSeats]);
 
-	// Fetch user profile when session changes
+	// Fetch user profile only once when component mounts (prevent infinite loop)
+	const hasLoadedProfile = useRef(false);
 	useEffect(() => {
 		const fetchUserProfile = async () => {
+			// Only fetch once
+			if (hasLoadedProfile.current) {
+				return;
+			}
+
 			if (session?.access_token && session?.refresh_token) {
+				console.log('👤 Fetching user profile (one-time on mount)');
+				hasLoadedProfile.current = true; // Mark as loaded before the call
 				await getUserProfile(
 					session.access_token,
 					session.refresh_token
@@ -313,7 +325,7 @@ export const PassengerDetailsForm = forwardRef<
 		};
 
 		fetchUserProfile();
-	}, [session]);
+	}, []); // Empty dependency array - only run once on mount
 
 	// Effect to track which previous passengers are used in forms
 	useEffect(() => {
@@ -451,21 +463,34 @@ export const PassengerDetailsForm = forwardRef<
 
 						if (passengersResponse.ok && passengersData.success) {
 							// Map the API response to the expected format
-							const mappedPassengers = passengersData.passengers.map((passenger: any) => ({
-								id: passenger.id,
-								fName: passenger.fName,
-								lName: passenger.lName,
-								gender: passenger.gender === 'Male' ? 'male' : 'female',
-								nationalCode: passenger.nationalCode,
-								address: passenger.address,
-								dateOfBirth: passenger.dateOfBirth,
-								phoneNumber: passenger.phoneNumber,
-								email: passenger.email,
-								seatNo: passenger.seatNo,
-								seatID: passenger.seatID,
-								createdAt: passenger.createdAt,
-								updatedAt: passenger.updatedAt
-							}));
+							const mappedPassengers = passengersData.passengers.map((passenger: any) => {
+								// Database: true=male, false=female → API returns "2"=male (true), "1"=female (false)
+								const isMale = passenger.gender === '2' || passenger.gender === 2;
+								const genderString = isMale ? 'Male' : 'Female';
+
+								console.log(`🔄 Mapping passenger ${passenger.fName}:`, {
+									rawGender: passenger.gender,
+									genderType: typeof passenger.gender,
+									isMale,
+									mappedGender: genderString
+								});
+
+								return {
+									id: passenger.id,
+									fName: passenger.fName,
+									lName: passenger.lName,
+									gender: genderString, // Use 'Male' or 'Female' for PreviousPassenger interface
+									nationalCode: passenger.nationalCode,
+									address: passenger.address,
+									dateOfBirth: passenger.dateOfBirth,
+									phoneNumber: passenger.phoneNumber,
+									email: passenger.email,
+									seatNo: passenger.seatNo,
+									seatID: passenger.seatID,
+									createdAt: passenger.createdAt,
+									updatedAt: passenger.updatedAt
+								};
+							});
 
 							// Set the passengers data and open dialog
 							setPreviousPassengers(mappedPassengers);
@@ -535,18 +560,23 @@ export const PassengerDetailsForm = forwardRef<
 			const passengers = response.data.passengers
 				.filter((passenger: any) => passenger.id !== undefined && passenger.id !== null)
 				.map((passenger: any, index: number) => {
-					// Debug only if there's an issue with fName/lName
-					if (!passenger.fName || !passenger.lName) {
-					}
+					// Database: true=male, false=female → API returns "2"=male (true), "1"=female (false)
+					const isMale = passenger.gender === '2' || passenger.gender === 2;
+					const genderString = isMale ? 'Male' : 'Female';
+
+					console.log(`🔄 fetchPreviousPassengers mapping ${passenger.fName}:`, {
+						rawGender: passenger.gender,
+						isMale,
+						mappedGender: genderString
+					});
 
 					return {
 						id: passenger.id !== undefined ? passenger.id : `generated-${index}`,
-						name: passenger.fName || '',
-						family: passenger.lName || '',
-						nationalId: passenger.nationalCode || '',
-						// Convert string gender from admin API to integer (Male=male=2, Female=female=1)
-						gender: passenger.gender === 'Male' ? 2 : 1,
-						birthDate: formatBirthDateForPassengerForm(passenger.dateOfBirth)
+						fName: passenger.fName || '',
+						lName: passenger.lName || '',
+						nationalCode: passenger.nationalCode || '',
+						gender: genderString, // Use 'Male' or 'Female' for PreviousPassenger interface
+						dateOfBirth: formatBirthDateForPassengerForm(passenger.dateOfBirth)
 					};
 				});
 
@@ -732,6 +762,14 @@ export const PassengerDetailsForm = forwardRef<
 			return;
 		}
 
+		console.log(`👤 Selected passenger from dialog:`, {
+			name: `${selectedPassenger.fName} ${selectedPassenger.lName}`,
+			gender: selectedPassenger.gender,
+			genderType: typeof selectedPassenger.gender,
+			genderLowercase: selectedPassenger.gender.toLowerCase(),
+			expectedRadio: selectedPassenger.gender === 'Male' ? 'آقا' : 'خانم'
+		});
+
 		if (assignedPassengerIds.includes(selectedPassengerId)) {
 			const seatWithPassenger = Object.entries(passengerMap).find(
 				([_, passenger]) => passenger.previousPassengerId === selectedPassengerId
@@ -753,7 +791,7 @@ export const PassengerDetailsForm = forwardRef<
 						...prev[Number(seatWithPassenger[0])],
 						fName: "",
 						lName: "",
-						gender: "Male",
+						gender: "male", // Use lowercase for consistency
 						nationalCode: "",
 						address: "",
 						dateOfBirth: "",
@@ -771,27 +809,53 @@ export const PassengerDetailsForm = forwardRef<
 
 		// Update passenger map with correct field names from dialog
 
-		setPassengerMap(prev => ({
-			...prev,
-			[activeSeatId]: {
-				...prev[activeSeatId],
-				fName: selectedPassenger.fName,
-				lName: selectedPassenger.lName,
-				nationalCode: selectedPassenger.nationalCode,
-				dateOfBirth: selectedPassenger.dateOfBirth || "",
-				phoneNumber: "", // Admin API doesn't provide phoneNumber, so keep it empty
-				gender: selectedPassenger.gender, // Already in correct format from dialog
-				previousPassengerId: selectedPassenger.id
-			}
-		}));
+		const newGender = selectedPassenger.gender.toLowerCase();
+
+		// Get the previous passenger ID assigned to this seat (if any)
+		const previousPassengerId = passengerMap[activeSeatId]?.previousPassengerId;
+
+		console.log(`📝 Setting passenger map for seat ${activeSeatId}:`, {
+			name: `${selectedPassenger.fName} ${selectedPassenger.lName}`,
+			originalGender: selectedPassenger.gender,
+			convertedGender: newGender,
+			previousPassengerId,
+			newPassengerId: selectedPassenger.id,
+			isChangingPassenger: previousPassengerId && previousPassengerId !== selectedPassenger.id
+		});
+
+		setPassengerMap(prev => {
+			return {
+				...prev,
+				[activeSeatId]: {
+					...prev[activeSeatId],
+					fName: selectedPassenger.fName,
+					lName: selectedPassenger.lName,
+					nationalCode: selectedPassenger.nationalCode,
+					dateOfBirth: selectedPassenger.dateOfBirth || "",
+					phoneNumber: "", // Admin API doesn't provide phoneNumber, so keep it empty
+					gender: newGender, // Store as lowercase for consistency
+					previousPassengerId: selectedPassenger.id
+				}
+			};
+		});
 
 		// Convert string gender to lowercase for seat update
 		const genderString = selectedPassenger.gender.toLowerCase() as "male" | "female";
+		console.log(`🎨 Updating seat gender for seat ${activeSeatId} to "${genderString}"`);
 		directlyUpdateSeatGender(activeSeatId, genderString);
 
+		// Update assignedPassengerIds: remove old passenger ID and add new one
 		setAssignedPassengerIds(prev => {
-			const filtered = prev.filter(id => id !== selectedPassenger.id);
-			return [...filtered, selectedPassenger.id];
+			// Remove both the old passenger ID (if exists) and new passenger ID (to avoid duplicates)
+			let filtered = prev.filter(id => id !== selectedPassenger.id);
+			if (previousPassengerId && previousPassengerId !== selectedPassenger.id) {
+				filtered = filtered.filter(id => id !== previousPassengerId);
+				console.log(`🔄 Removed previous passenger ID ${previousPassengerId} from assigned list`);
+			}
+			// Add the new passenger ID
+			const newList = [...filtered, selectedPassenger.id];
+			console.log(`✅ Updated assignedPassengerIds:`, newList);
+			return newList;
 		});
 
 		toast({
@@ -818,13 +882,11 @@ export const PassengerDetailsForm = forwardRef<
 		savePassengers: async () => {
 
 			if (isSavingPassengers) {
+				console.log('⏸️ Already saving passengers, skipping...');
 				return { success: false, passengers: [] };
 			}
 
-			if (session && hasPhoneNumber === false) {
-				setPhoneNumberDialogOpen(true);
-				return { success: false, passengers: [] };
-			}
+			// Admin panel - no need to check phone number as all users are registered
 
 			const hasDuplicateNationalId = Object.values(passengerMap).some(
 				passenger => passenger.hasInvalidNationalCode === true
@@ -875,8 +937,8 @@ export const PassengerDetailsForm = forwardRef<
 
 					const isFromPrevious = !!passenger.previousPassengerId;
 
-					// Convert string gender to integer format for StoredPassenger
-					const genderInt = passenger.gender === "Female" ? 1 : 2;
+					// Convert string gender to integer format for StoredPassenger (2=male/true, 1=female/false)
+					const genderInt = passenger.gender.toLowerCase() === "male" ? 2 : 1;
 					const storedPassenger: StoredPassenger = {
 						id: isFromPrevious ? passenger.previousPassengerId! : `new-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
 						name: passenger.fName,
@@ -902,13 +964,14 @@ export const PassengerDetailsForm = forwardRef<
 								passenger.dateOfBirth !== originalPassenger.dateOfBirth;
 
 							if (isModified) {
-								// Convert string gender to boolean for API
+								// Convert string gender to boolean for API (true=male, false=female)
+								const genderBoolean = passenger.gender.toLowerCase() === "male";
 								modifiedPrevPassengers.push({
 									id: passenger.previousPassengerId,
 									fName: passenger.fName,
 									lName: passenger.lName,
 									nationalCode: passenger.nationalCode,
-									gender: passenger.gender === "Male", // Convert: "Male"=true, "Female"=false
+									gender: genderBoolean, // Convert: "male"=true, "female"=false
 									dateOfBirth: formattedBirthDate,
 									seatNo: passenger.seatNo?.toString() || '',
 									seatId: passenger.seatID.toString() || ''
@@ -918,12 +981,13 @@ export const PassengerDetailsForm = forwardRef<
 							}
 						}
 					} else {
-						// Convert string gender to boolean for API
+						// Convert string gender to boolean for API (1=male=true, 2=female=false)
+						const genderBoolean = passenger.gender.toLowerCase() === "male";
 						newPassengers.push({
 							FName: passenger.fName,
 							LName: passenger.lName,
 							NationalCode: passenger.nationalCode,
-							Gender: passenger.gender === "Male", // Convert: "Male"=true, "Female"=false
+							Gender: genderBoolean, // Convert: "male"=true, "female"=false
 							DateOfBirth: formattedBirthDate,
 							seatNo: passenger.seatNo?.toString() || '',
 							seatId: passenger.seatID.toString() || ''
@@ -1025,10 +1089,15 @@ export const PassengerDetailsForm = forwardRef<
 
 			passengers.forEach(passenger => {
 				if (passenger.seatId) {
-					// Convert integer gender to string value
-					const genderValue = typeof passenger.gender === 'number'
-						? (passenger.gender === 1 ? "Female" : "Male")
-						: (passenger.gender === 'female' ? "Female" : "Male");
+					// Convert integer gender to string value (2=male/true, 1=female/false)
+					let genderValue: string;
+					if (typeof passenger.gender === 'number') {
+						genderValue = passenger.gender === 2 ? "Male" : "Female";
+					} else {
+						// Handle string gender
+						const genderStr = String(passenger.gender);
+						genderValue = genderStr.toLowerCase() === 'female' ? "Female" : "Male";
+					}
 
 					newMap[passenger.seatId] = {
 						fName: passenger.name,
@@ -1046,13 +1115,16 @@ export const PassengerDetailsForm = forwardRef<
 						hasInvalidNationalCode: false
 					};
 
-					// Convert string gender to lowercase for seat state
-					if (passenger.gender !== undefined) {
-						const genderString = typeof passenger.gender === 'number'
-							? (passenger.gender === 1 ? "female" : "male")
-							: (passenger.gender === "Female" ? "female" : "male");
-						directlyUpdateSeatGender(passenger.seatId, genderString);
+					// Convert to lowercase for seat state (2=male/true, 1=female/false)
+					let genderString: "male" | "female";
+					if (typeof passenger.gender === 'number') {
+						genderString = passenger.gender === 2 ? "male" : "female";
+					} else {
+						// Handle string gender
+						const genderStr = String(passenger.gender);
+						genderString = genderStr.toLowerCase() === "female" ? "female" : "male";
 					}
+					directlyUpdateSeatGender(passenger.seatId, genderString);
 				}
 			});
 
@@ -1094,17 +1166,25 @@ export const PassengerDetailsForm = forwardRef<
 					{/* Passenger Forms with correct field mapping */}
 					{Object.values(passengerMap).map((passenger, index) => {
 
-						// Create a unique key that changes when passenger data changes
-						const passengerDataHash = `${passenger.fName}-${passenger.lName}-${passenger.nationalCode}-${passenger.dateOfBirth}-${passenger.previousPassengerId}`;
+						// Create a unique key that changes when passenger data changes (including gender)
+						const passengerDataHash = `${passenger.fName}-${passenger.lName}-${passenger.nationalCode}-${passenger.dateOfBirth}-${passenger.gender}-${passenger.previousPassengerId}`;
 						const uniqueKey = `${passenger.seatID}-${passengerDataHash}`;
+						console.log("🔍 passenger.gender value:", passenger.gender, "type:", typeof passenger.gender);
+
+						// Normalize gender to lowercase
+						const normalizedGender = typeof passenger.gender === 'string'
+							? passenger.gender.toLowerCase() as "male" | "female"
+							: "male";
+
+						console.log("🔍 normalized gender for PassengerForm:", normalizedGender);
 
 						return (
 							<div key={uniqueKey}>
 								<PassengerForm
-									key={`passenger-form-${passenger.seatID}-${passenger.previousPassengerId || 'new'}-${passenger.fName}-${passenger.lName}`}
+									key={`passenger-form-${passenger.seatID}-${normalizedGender}-${passenger.previousPassengerId || 'new'}`}
 									seatId={passenger.seatID}
 									seatNo={passenger.seatNo}
-									gender={passenger.gender === "Female" ? "female" : "male"} // Convert to lowercase for form
+									gender={normalizedGender}
 									fName={passenger.fName}
 									lName={passenger.lName}
 									nationalCode={passenger.nationalCode}
@@ -1204,84 +1284,6 @@ export const PassengerDetailsForm = forwardRef<
 										<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
 											<path d="M12 8.66667H6.66667V10.6667L3.33333 8.00001L6.66667 5.33334V7.33334H12V8.66667Z" fill="white" />
 											<path d="M1.33333 12.6667V3.33334C1.33333 2.59334 1.92667 2.00001 2.66667 2.00001H8V3.33334H2.66667V12.6667H8V14H2.66667C1.92667 14 1.33333 13.4067 1.33333 12.6667Z" fill="white" />
-										</svg>
-									</button>
-								</div>
-							</div>
-						</DialogContent>
-					</Dialog>
-
-					{/* Phone Number Dialog */}
-					<Dialog open={phoneNumberDialogOpen} onOpenChange={setPhoneNumberDialogOpen}>
-						<DialogContent className="max-w-md w-[90%] p-0 overflow-hidden focus:outline-none border-0">
-							<div className="bg-gradient-to-r from-[#0D5990] to-[#1A74B4] text-white p-6 text-center relative">
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									className="h-12 w-12 mx-auto mb-3 bg-white/20 p-2 rounded-full"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-								</svg>
-								<DialogTitle className="text-[18px] font-IranYekanBold mb-2">
-									شماره تماس ثبت نشده است
-								</DialogTitle>
-								<p className="text-sm text-white/80 font-IranYekanLight">
-									برای ادامه‌ی فرآیند، لطفا شماره تماس خود را در پروفایل ثبت کنید
-								</p>
-							</div>
-
-							<div className="p-6">
-								<p className="text-gray-700 font-IranYekanRegular leading-relaxed mb-2" dir='rtl'>
-									با ثبت شماره تماس در حساب کاربری خود:
-								</p>
-								<div className="mb-6 text-center" dir='rtl'>
-									<ul className="text-right text-sm text-gray-600 font-IranYekanLight space-y-2 mb-6">
-										<li className="flex items-center gap-2 rtl">
-											<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
-												<path d="M8 16C12.4183 16 16 12.4183 16 8C16 3.58172 12.4183 0 8 0C3.58172 0 0 3.58172 0 8C0 12.4183 3.58172 16 8 16Z" fill="#E6F0F9" />
-												<path d="M5.64 10.1599L3.84 8.35986L3.2 8.99986L5.64 11.4399L12.64 4.43986L12 3.79986L5.64 10.1599Z" fill="#0D5990" />
-											</svg>
-											<span>اطلاعات سفر و بلیط به شماره شما ارسال می‌شود</span>
-										</li>
-										<li className="flex items-center gap-2 rtl">
-											<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
-												<path d="M8 16C12.4183 16 16 12.4183 16 8C16 3.58172 12.4183 0 8 0C3.58172 0 0 3.58172 0 8C0 12.4183 3.58172 16 8 16Z" fill="#E6F0F9" />
-												<path d="M5.64 10.1599L3.84 8.35986L3.2 8.99986L5.64 11.4399L12.64 4.43986L12 3.79986L5.64 10.1599Z" fill="#0D5990" />
-											</svg>
-											<span>در صورت تغییرات سفر از طریق پیامک مطلع می‌شوید</span>
-										</li>
-										<li className="flex items-center gap-2 rtl">
-											<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
-												<path d="M8 16C12.4183 16 16 12.4183 16 8C16 3.58172 12.4183 0 8 0C3.58172 0 0 3.58172 0 8C0 12.4183 3.58172 16 8 16Z" fill="#E6F0F9" />
-												<path d="M5.64 10.1599L3.84 8.35986L3.2 8.99986L5.64 11.4399L12.64 4.43986L12 3.79986L5.64 10.1599Z" fill="#0D5990" />
-											</svg>
-											<span>دسترسی به خدمات بهتر پشتیبانی فراهم می‌شود</span>
-										</li>
-									</ul>
-								</div>
-
-								<div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-									<button
-										className="order-2 sm:order-1 px-4 py-2.5 border border-gray-300 rounded-md text-gray-700 font-IranYekanRegular text-[14px] hover:bg-gray-50 transition-colors w-full sm:w-auto"
-										onClick={() => setPhoneNumberDialogOpen(false)}
-									>
-										بستن پنجره
-									</button>
-									<button
-										className="order-1 sm:order-2 px-4 py-2.5 bg-[#0D5990] text-white rounded-md font-IranYekanRegular text-[14px] hover:bg-[#0A4A7A] transition-colors w-full sm:w-auto flex justify-center items-center gap-2"
-										onClick={() => {
-											setPhoneNumberDialogOpen(false);
-											router.push("/profile");
-										}}
-									>
-										<span>ثبت شماره تماس</span>
-										<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-											<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
 										</svg>
 									</button>
 								</div>

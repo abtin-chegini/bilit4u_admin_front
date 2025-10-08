@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { localForageManager } from '@/services/LocalForageManager';
 
 export interface StoredPassenger {
 	id: number | string;
@@ -8,7 +9,7 @@ export interface StoredPassenger {
 	name: string;
 	family: string;
 	nationalId: string;
-	gender: 1 | 2; // FIXED: Use integer type (1 = female, 2 = male)
+	gender: 1 | 2; // Integer type: 2 = male (true), 1 = female (false)
 	birthDate: string;
 	isFromPreviousPassengers?: boolean;
 	hasBeenModified?: boolean;
@@ -25,6 +26,7 @@ interface PassengerState {
 	clearPassengers: () => void;
 	getSessionPassengers: () => StoredPassenger[];
 	cleanupOldSessions: (maxAgeMs?: number) => void;
+	saveToLocalForage: () => Promise<void>;
 }
 
 // Generate a unique session ID
@@ -70,6 +72,9 @@ export const usePassengerStore = create<PassengerState>()(
 						};
 					}
 				});
+
+				// Save to localforage
+				setTimeout(() => get().saveToLocalForage(), 0);
 			},
 
 			addPassengers: (newPassengers) => {
@@ -90,11 +95,16 @@ export const usePassengerStore = create<PassengerState>()(
 						timestamp
 					}));
 
+					const finalPassengers = [...otherSessionPassengers, ...enhancedPassengers];
+
 					// Return the combined set
 					return {
-						passengers: [...otherSessionPassengers, ...enhancedPassengers]
+						passengers: finalPassengers
 					};
 				});
+
+				// Save to localforage
+				setTimeout(() => get().saveToLocalForage(), 0);
 			},
 
 			removePassenger: (id) => {
@@ -104,6 +114,9 @@ export const usePassengerStore = create<PassengerState>()(
 						p => !(p.id === id && p.sessionId === sessionId)
 					)
 				}));
+
+				// Save to localforage
+				setTimeout(() => get().saveToLocalForage(), 0);
 			},
 
 			clearPassengers: () => {
@@ -112,12 +125,16 @@ export const usePassengerStore = create<PassengerState>()(
 				set((state) => ({
 					passengers: state.passengers.filter(p => p.sessionId !== sessionId)
 				}));
+
+				// Save to localforage
+				setTimeout(() => get().saveToLocalForage(), 0);
 			},
 
 			getSessionPassengers: () => {
 				// Return only passengers from current session
 				const { passengers, currentSessionId } = get();
-				return passengers.filter(p => p.sessionId === currentSessionId);
+				const sessionPassengers = passengers.filter(p => p.sessionId === currentSessionId);
+				return sessionPassengers;
 			},
 
 			cleanupOldSessions: (maxAgeMs = DEFAULT_SESSION_MAX_AGE) => {
@@ -133,6 +150,38 @@ export const usePassengerStore = create<PassengerState>()(
 						);
 					})
 				}));
+			},
+
+			// Save current passengers to localforage
+			saveToLocalForage: async () => {
+				try {
+					const state = get();
+					const sessionId = state.currentSessionId;
+					const sessionPassengers = state.passengers.filter(
+						p => p.sessionId === sessionId
+					);
+
+					// Store passenger data in localforage
+					await localForageManager.storeFlowStep(sessionId, {
+						stepId: 'passenger-details',
+						stepName: 'Passenger Information',
+						data: {
+							passengers: sessionPassengers,
+							passengerCount: sessionPassengers.length,
+							timestamp: Date.now()
+						},
+						completed: sessionPassengers.length > 0,
+						timestamp: Date.now()
+					});
+
+					console.log('✅ Passenger data saved to localforage:', {
+						sessionId,
+						passengerCount: sessionPassengers.length,
+						passengers: sessionPassengers
+					});
+				} catch (error) {
+					console.error('❌ Failed to save passengers to localforage:', error);
+				}
 			}
 		}),
 		{

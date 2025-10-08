@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { SeatState } from '@/components/PDP/seat/seat';
+import { localForageManager } from '@/services/LocalForageManager';
 
 // Define a proper type for seats
 interface Seat {
@@ -17,16 +18,25 @@ interface TicketState {
 	seatMap: any | null;
 	lastUpdated: string | null;
 	isClearing: boolean; // Add flag to prevent recursive clearing
+	sessionId: string | null; // Add session ID for localforage
+	srvTicket: any | null; // Add srvTicket data
 	setTicketInfo: (ticketId: string, token: string) => void;
 	setServiceData: (data: any) => void;
 	setSeatMap: (data: any) => void;
+	setSrvTicket: (data: any) => void;
 	handleSeatClick: (id: number, currentState: SeatState, seatNo?: string | number, maxSelectable?: number) => SeatState;
 	removeSelectedSeat: (seatId: number) => void;
 	clearSelectedSeats: () => void;
 	resetState: () => void;
 	directlyUpdateSeatGender: (seatId: number, gender: "male" | "female") => void;
 	updateSeatState: (seatId: number, newState: SeatState) => void;
+	saveToLocalForage: () => Promise<void>;
 }
+
+// Helper function to generate session ID
+const generateSessionId = () => {
+	return `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+};
 
 const initialState = {
 	ticketId: null,
@@ -36,6 +46,8 @@ const initialState = {
 	seatMap: null,
 	lastUpdated: null,
 	isClearing: false, // Add this flag to initial state
+	sessionId: null,
+	srvTicket: null,
 };
 
 export const useTicketStore = create<TicketState>()(
@@ -44,11 +56,18 @@ export const useTicketStore = create<TicketState>()(
 			...initialState,
 
 			// Set ticket ID and token
-			setTicketInfo: (ticketId, token) => set({
-				ticketId,
-				token,
-				lastUpdated: new Date().toISOString()
-			}),
+			setTicketInfo: (ticketId, token) => {
+				const sessionId = get().sessionId || generateSessionId();
+				set({
+					ticketId,
+					token,
+					sessionId,
+					lastUpdated: new Date().toISOString()
+				});
+
+				// Save to localforage
+				setTimeout(() => get().saveToLocalForage(), 0);
+			},
 
 			updateSeatState: (seatId: number, newState: SeatState) => {
 				// Don't process updates if we're in the middle of clearing
@@ -66,6 +85,8 @@ export const useTicketStore = create<TicketState>()(
 						selectedSeats: store.selectedSeats.filter(s => s.id !== seatId)
 					});
 					console.log(`Removed seat ${seatId}`);
+					// Save to localforage after removing seat
+					setTimeout(() => get().saveToLocalForage(), 0);
 					return;
 				}
 
@@ -94,6 +115,9 @@ export const useTicketStore = create<TicketState>()(
 					});
 					console.log(`Added new seat ${seatId} with state ${newState}`);
 				}
+
+				// Save to localforage after seat state update
+				setTimeout(() => get().saveToLocalForage(), 0);
 			},
 
 			// Keep directlyUpdateSeatGender for compatibility but make it use updateSeatState
@@ -107,10 +131,26 @@ export const useTicketStore = create<TicketState>()(
 
 			// Method removed to avoid duplication with the implementation below
 			// Set service data
-			setServiceData: (serviceData) => set({ serviceData }),
+			setServiceData: (serviceData) => {
+				set({ serviceData });
+				// Save to localforage
+				setTimeout(() => get().saveToLocalForage(), 0);
+			},
 
 			// Set seat map
-			setSeatMap: (seatMap) => set({ seatMap }),
+			setSeatMap: (seatMap) => {
+				set({ seatMap });
+				// Save to localforage
+				setTimeout(() => get().saveToLocalForage(), 0);
+			},
+
+			// Set srvTicket data
+			setSrvTicket: (srvTicket) => {
+				set({ srvTicket });
+				console.log('✅ srvTicket data updated in store:', srvTicket);
+				// Save to localforage
+				setTimeout(() => get().saveToLocalForage(), 0);
+			},
 
 			// Centralized seat click handler with cycling behavior
 			handleSeatClick: (id, currentState, seatNo, maxSelectable = 4) => {
@@ -183,6 +223,9 @@ export const useTicketStore = create<TicketState>()(
 					}
 				}
 
+				// Save to localforage after seat click
+				setTimeout(() => get().saveToLocalForage(), 0);
+
 				return nextState;
 			},
 
@@ -197,6 +240,9 @@ export const useTicketStore = create<TicketState>()(
 				set({
 					selectedSeats: get().selectedSeats.filter(seat => seat.id !== seatId)
 				});
+
+				// Save to localforage after removing seat
+				setTimeout(() => get().saveToLocalForage(), 0);
 			},
 
 			// Clear selected seats - with guard against recursive calls
@@ -204,10 +250,68 @@ export const useTicketStore = create<TicketState>()(
 				console.log("Clearing all selected seats - simple implementation");
 				// Direct state update, no flags or timeouts
 				set({ selectedSeats: [] });
+
+				// Save to localforage after clearing
+				setTimeout(() => get().saveToLocalForage(), 0);
 			},
 
 			// Reset entire state to initial values
-			resetState: () => set(initialState)
+			resetState: () => {
+				set(initialState);
+				// Clear from localforage
+				const sessionId = get().sessionId;
+				if (sessionId) {
+					localForageManager.clearSession(sessionId).catch(console.error);
+				}
+			},
+
+			// Save current state to localforage
+			saveToLocalForage: async () => {
+				try {
+					const state = get();
+
+					// Create or get session ID
+					const sessionId = state.sessionId || generateSessionId();
+					if (!state.sessionId) {
+						set({ sessionId });
+					}
+
+					// Prepare data for localforage
+					const sessionData = {
+						sessionId,
+						userId: state.token || 'anonymous',
+						ticketData: {
+							ticketId: state.ticketId,
+							token: state.token,
+							selectedSeats: state.selectedSeats,
+							serviceData: state.serviceData,
+							seatMap: state.seatMap,
+							srvTicket: state.srvTicket,
+						},
+						flowData: {
+							currentStep: 'seat-selection',
+							selectedSeatsData: state.selectedSeats.map(seat => ({
+								seatId: seat.id,
+								seatNo: seat.seatNo,
+								gender: seat.state === 'selected-male' ? 'male' : 'female',
+								state: seat.state
+							})),
+							srvTicketData: state.srvTicket
+						}
+					};
+
+					// Store in localforage
+					await localForageManager.storeSession(sessionData);
+					console.log('✅ Ticket data saved to localforage:', {
+						sessionId,
+						selectedSeatsCount: state.selectedSeats.length,
+						hasSrvTicket: !!state.srvTicket,
+						hasServiceData: !!state.serviceData
+					});
+				} catch (error) {
+					console.error('❌ Failed to save to localforage:', error);
+				}
+			}
 		}),
 		{
 			name: 'ticket-storage', // unique name for localStorage

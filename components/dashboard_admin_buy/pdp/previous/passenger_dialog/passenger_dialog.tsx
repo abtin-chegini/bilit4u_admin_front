@@ -82,17 +82,41 @@ export function EnhancedPreviousPassengersDialog({
 
       const data = await response.json();
       console.log('🔍 API Response Data:', data);
+      console.log('🔍 Raw passengers from API:', data.passengers?.map((p: any) => ({
+        name: `${p.fName} ${p.lName}`,
+        gender: p.gender,
+        genderType: typeof p.gender
+      })));
 
       if (data.success && data.passengers) {
         // Map the API response to PreviousPassenger format
-        const mappedPassengers: PreviousPassenger[] = data.passengers.map((passenger: any) => ({
-          id: passenger.id,
-          fName: passenger.fName || '',
-          lName: passenger.lName || '',
-          nationalCode: passenger.nationalCode || '',
-          gender: passenger.gender === 'Male' ? 'Male' : 'Female',
-          dateOfBirth: passenger.dateOfBirth
-        }));
+        const mappedPassengers: PreviousPassenger[] = data.passengers.map((passenger: any, index: number) => {
+          // Database: true=male, false=female → API returns "2"=male (true), "1"=female (false)
+          const isMale = passenger.gender === 2 || passenger.gender === '2';
+
+          // Detailed logging for gender mapping
+          console.log('🔍 Gender mapping for passenger:', passenger.gender, passenger.lName);
+          console.log(`🔍 PASSENGER ${index + 1} - ${passenger.fName} ${passenger.lName}:`);
+          console.log(`   📊 Raw gender value: ${passenger.gender}`);
+          console.log(`   📊 Gender type: ${typeof passenger.gender}`);
+          console.log(`   📊 Is number 2 (male/true)? ${passenger.gender === 2}`);
+          console.log(`   📊 Is number 1 (female/false)? ${passenger.gender === 1}`);
+          console.log(`   📊 Is string '2' (male/true)? ${passenger.gender === '2'}`);
+          console.log(`   📊 Is string '1' (female/false)? ${passenger.gender === '1'}`);
+          console.log(`   📊 Final isMale result: ${isMale}`);
+          console.log(`   📊 Final gender string: ${isMale ? 'Male' : 'Female'}`);
+          console.log(`   📊 Display text: ${isMale ? 'آقا' : 'خانم'}`);
+          console.log('   ───────────────────────────────────────────');
+
+          return {
+            id: passenger.id,
+            fName: passenger.fName || '',
+            lName: passenger.lName || '',
+            nationalCode: passenger.nationalCode || '',
+            gender: isMale ? 'Male' : 'Female',
+            dateOfBirth: passenger.dateOfBirth
+          };
+        });
 
         console.log('🔍 Mapped passengers:', mappedPassengers);
         setPassengers(mappedPassengers);
