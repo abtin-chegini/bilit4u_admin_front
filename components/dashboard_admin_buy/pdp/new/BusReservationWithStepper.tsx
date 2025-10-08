@@ -811,15 +811,12 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 					// Check if reservation was successful
 					if (reservationResponse.data.success === false) {
-						console.warn('⚠️ Seat reservation failed - Seats may be occupied');
+						console.warn('⚠️ Seat reservation failed - Seats are occupied');
 
 						// Show dialog for occupied seats
-						setOccupiedMessage(
-							reservationResponse.data.message ||
-							'صندلی‌های انتخابی قبلاً رزرو شده‌اند. لطفاً صندلی‌های دیگری را انتخاب کنید.'
-						);
+						setOccupiedMessage('صندلی در حال حاضر رزرو شده است');
 						setShowSeatsOccupiedDialog(true);
-						return; // Don't proceed
+						return; // Don't proceed to next step - keep user in step 1
 					}
 
 					// Store redisKey in localStorage for payment step
@@ -853,12 +850,9 @@ const BusReservationWithStepper: React.FC<BusReservationWithStepperProps> = ({
 
 						// Check if the error response indicates seats are occupied
 						if (reservationError.response?.data?.success === false) {
-							setOccupiedMessage(
-								reservationError.response.data.message ||
-								'صندلی‌های انتخابی قبلاً رزرو شده‌اند. لطفاً صندلی‌های دیگری را انتخاب کنید.'
-							);
+							setOccupiedMessage('صندلی در حال حاضر رزرو شده است');
 							setShowSeatsOccupiedDialog(true);
-							return;
+							return; // Don't proceed to next step - keep user in step 1
 						}
 					}
 
