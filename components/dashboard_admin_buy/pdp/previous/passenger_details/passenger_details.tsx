@@ -268,42 +268,55 @@ export const PassengerDetailsForm = forwardRef<
 		}
 	};
 
-	// FIXED: Initialize passenger data for each selected seat with correct gender handling
+	// Initialize passenger data for each selected seat - only when seats are added/removed
 	useEffect(() => {
-		const newMap: Record<number, PassengerData> = {};
-		selectedSeats.forEach((s) => {
-			const existing = passengerMap[s.id];
-			// Convert seat state to string gender value (lowercase)
-			const genderValue = s.state.includes("female") ? "female" : "male";
-			if (existing) {
-				// Don't overwrite gender if passenger already has data (prevents overwriting after dialog selection)
-				const shouldUpdateGender = !existing.fName && !existing.lName && !existing.nationalCode && !existing.previousPassengerId;
-				newMap[s.id] = {
-					...existing,
-					gender: shouldUpdateGender ? genderValue : existing.gender,
-					seatNo: s.seatNo?.toString()
-				};
-				console.log(`🔄 Seat ${s.id}: Preserving gender="${existing.gender}", shouldUpdate=${shouldUpdateGender}`);
-			} else {
-				newMap[s.id] = {
-					fName: "",
-					lName: "",
-					gender: genderValue,
-					nationalCode: "",
-					address: "",
-					dateOfBirth: "",
-					phoneNumber: "",
-					email: "",
-					seatNo: s.seatNo?.toString(),
-					seatID: s.id,
-					previousPassengerId: undefined,
-					validationErrors: {},
-					hasInvalidNationalCode: false
-				};
-			}
+		// Add new seats to the map without recreating the entire map
+		setPassengerMap(prev => {
+			const newMap = { ...prev };
+			let hasChanges = false;
+
+			// Add new seats
+			selectedSeats.forEach((s) => {
+				if (!newMap[s.id]) {
+					const genderValue = s.state.includes("female") ? "female" : "male";
+					newMap[s.id] = {
+						fName: "",
+						lName: "",
+						gender: genderValue,
+						nationalCode: "",
+						address: "",
+						dateOfBirth: "",
+						phoneNumber: "",
+						email: "",
+						seatNo: s.seatNo?.toString(),
+						seatID: s.id,
+						previousPassengerId: undefined,
+						validationErrors: {},
+						hasInvalidNationalCode: false
+					};
+					hasChanges = true;
+				} else {
+					// Update seatNo if it changed
+					if (newMap[s.id].seatNo !== s.seatNo?.toString()) {
+						newMap[s.id] = { ...newMap[s.id], seatNo: s.seatNo?.toString() };
+						hasChanges = true;
+					}
+				}
+			});
+
+			// Remove seats that are no longer selected
+			Object.keys(newMap).forEach(seatIdStr => {
+				const seatId = parseInt(seatIdStr);
+				if (!selectedSeats.find(s => s.id === seatId)) {
+					delete newMap[seatId];
+					hasChanges = true;
+				}
+			});
+
+			// Only return new map if there were actual changes
+			return hasChanges ? newMap : prev;
 		});
-		setPassengerMap(newMap);
-	}, [seats, selectedSeats]);
+	}, [selectedSeats.length]); // Only trigger on seat count change
 
 	// Fetch user profile only once when component mounts (prevent infinite loop)
 	const hasLoadedProfile = useRef(false);
@@ -393,34 +406,44 @@ export const PassengerDetailsForm = forwardRef<
 		};
 	}, [passengerMap, selectedSeats, validateAdditionalContact]);
 
-	// Effect to handle validation changes
+	// Effect to handle validation changes - debounced to prevent excessive re-renders
 	useEffect(() => {
 		if (!onValidationChange) return;
 
-		const validationResult = validateForm();
-		const prevResult = prevValidationResultRef.current;
-		if (
-			prevResult.isAnyPassengerValid !== validationResult.isAnyPassengerValid ||
-			prevResult.allPassengersValid !== validationResult.allPassengersValid
-		) {
-			prevValidationResultRef.current = validationResult;
-			onValidationChange(validationResult);
-		}
+		// Debounce validation to avoid running on every keystroke
+		const timer = setTimeout(() => {
+			const validationResult = validateForm();
+			const prevResult = prevValidationResultRef.current;
+			if (
+				prevResult.isAnyPassengerValid !== validationResult.isAnyPassengerValid ||
+				prevResult.allPassengersValid !== validationResult.allPassengersValid
+			) {
+				prevValidationResultRef.current = validationResult;
+				onValidationChange(validationResult);
+			}
+		}, 300); // 300ms debounce
+
+		return () => clearTimeout(timer);
 	}, [passengerMap, onValidationChange, validateForm]);
 
-	// Update validation when additional contact info changes
+	// Update validation when additional contact info changes - debounced
 	useEffect(() => {
 		if (!onValidationChange) return;
 
-		const validationResult = validateForm();
-		const prevResult = prevValidationResultRef.current;
-		if (
-			prevResult.isAnyPassengerValid !== validationResult.isAnyPassengerValid ||
-			prevResult.allPassengersValid !== validationResult.allPassengersValid
-		) {
-			prevValidationResultRef.current = validationResult;
-			onValidationChange(validationResult);
-		}
+		// Debounce validation
+		const timer = setTimeout(() => {
+			const validationResult = validateForm();
+			const prevResult = prevValidationResultRef.current;
+			if (
+				prevResult.isAnyPassengerValid !== validationResult.isAnyPassengerValid ||
+				prevResult.allPassengersValid !== validationResult.allPassengersValid
+			) {
+				prevValidationResultRef.current = validationResult;
+				onValidationChange(validationResult);
+			}
+		}, 300); // 300ms debounce
+
+		return () => clearTimeout(timer);
 	}, [additionalEmail, additionalPhone, showAdditionalContact, onValidationChange, validateForm]);
 
 	// Check auth status and fetch passengers
@@ -964,34 +987,49 @@ export const PassengerDetailsForm = forwardRef<
 								passenger.dateOfBirth !== originalPassenger.dateOfBirth;
 
 							if (isModified) {
-								// Convert string gender to boolean for API (true=male, false=female)
-								const genderBoolean = passenger.gender.toLowerCase() === "male";
-								modifiedPrevPassengers.push({
+								// Convert string gender to API format ("2"=male, "1"=female)
+								const genderString = passenger.gender.toLowerCase() === "male" ? "2" : "1";
+
+								const updatePayload: any = {
 									id: passenger.previousPassengerId,
 									fName: passenger.fName,
 									lName: passenger.lName,
 									nationalCode: passenger.nationalCode,
-									gender: genderBoolean, // Convert: "male"=true, "female"=false
-									dateOfBirth: formattedBirthDate,
-									seatNo: passenger.seatNo?.toString() || '',
-									seatId: passenger.seatID.toString() || ''
-								});
+									gender: genderString, // String: "2"=male, "1"=female
+								};
 
+								// Add optional fields only if they exist
+								if (formattedBirthDate) updatePayload.dateOfBirth = formattedBirthDate;
+								if (passenger.address) updatePayload.address = passenger.address;
+								if (passenger.phoneNumber) updatePayload.phoneNumber = passenger.phoneNumber;
+								if (passenger.email) updatePayload.email = passenger.email;
+								if (passenger.seatNo) updatePayload.seatNo = passenger.seatNo.toString();
+								if (passenger.seatID !== undefined) updatePayload.seatID = passenger.seatID;
+
+								modifiedPrevPassengers.push(updatePayload);
 								storedPassenger.hasBeenModified = true;
 							}
 						}
 					} else {
-						// Convert string gender to boolean for API (1=male=true, 2=female=false)
-						const genderBoolean = passenger.gender.toLowerCase() === "male";
-						newPassengers.push({
+						// Convert string gender to API format ("2"=male, "1"=female)
+						const genderString = passenger.gender.toLowerCase() === "male" ? "2" : "1";
+
+						const newPassengerPayload: any = {
 							FName: passenger.fName,
 							LName: passenger.lName,
 							NationalCode: passenger.nationalCode,
-							Gender: genderBoolean, // Convert: "male"=true, "female"=false
-							DateOfBirth: formattedBirthDate,
-							seatNo: passenger.seatNo?.toString() || '',
-							seatId: passenger.seatID.toString() || ''
-						});
+							Gender: genderString, // String: "2"=male, "1"=female
+						};
+
+						// Add optional fields only if they exist
+						if (formattedBirthDate) newPassengerPayload.DateOfBirth = formattedBirthDate;
+						if (passenger.address) newPassengerPayload.Address = passenger.address;
+						if (passenger.phoneNumber) newPassengerPayload.PhoneNumber = passenger.phoneNumber;
+						if (passenger.email) newPassengerPayload.Email = passenger.email;
+						if (passenger.seatNo) newPassengerPayload.SeatNo = passenger.seatNo.toString();
+						if (passenger.seatID !== undefined) newPassengerPayload.SeatID = passenger.seatID;
+
+						newPassengers.push(newPassengerPayload);
 					}
 
 					storedPassengers.push(storedPassenger);
@@ -1003,6 +1041,14 @@ export const PassengerDetailsForm = forwardRef<
 					// Add new passengers
 					if (newPassengers.length > 0) {
 						try {
+							console.log('🔄 Creating new passengers (bulk):', {
+								count: newPassengers.length,
+								passengers: newPassengers.map(p => ({
+									name: `${p.FName} ${p.LName}`,
+									gender: p.Gender
+								}))
+							});
+
 							const response = await axios.post(
 								'https://api.bilit4u.com/admin/api/v1/admin/passengers/bulk',
 								{
@@ -1015,6 +1061,8 @@ export const PassengerDetailsForm = forwardRef<
 									}
 								}
 							);
+
+							console.log('✅ New passengers created successfully:', response.data);
 
 							if (response.data?.passengers) {
 								response.data.passengers.forEach((serverPassenger: any) => {
@@ -1037,12 +1085,15 @@ export const PassengerDetailsForm = forwardRef<
 					if (modifiedPrevPassengers.length > 0) {
 						try {
 							for (const passenger of modifiedPrevPassengers) {
+								console.log('🔄 Updating passenger:', {
+									id: passenger.id,
+									name: `${passenger.fName} ${passenger.lName}`,
+									gender: passenger.gender
+								});
+
 								await axios.put(
 									'https://api.bilit4u.com/admin/api/v1/admin/passenger',
-									{
-										PassengerId: passenger.id,
-										Passenger: passenger
-									},
+									passenger, // Send passenger object directly
 									{
 										headers: {
 											'Authorization': `Bearer ${session.access_token}`,
@@ -1050,6 +1101,8 @@ export const PassengerDetailsForm = forwardRef<
 										}
 									}
 								);
+
+								console.log('✅ Passenger updated successfully:', passenger.id);
 							}
 						} catch (error) {
 							console.error("Error updating previous passengers:", error);
@@ -1166,22 +1219,16 @@ export const PassengerDetailsForm = forwardRef<
 					{/* Passenger Forms with correct field mapping */}
 					{Object.values(passengerMap).map((passenger, index) => {
 
-						// Create a unique key that changes when passenger data changes (including gender)
-						const passengerDataHash = `${passenger.fName}-${passenger.lName}-${passenger.nationalCode}-${passenger.dateOfBirth}-${passenger.gender}-${passenger.previousPassengerId}`;
-						const uniqueKey = `${passenger.seatID}-${passengerDataHash}`;
-						console.log("🔍 passenger.gender value:", passenger.gender, "type:", typeof passenger.gender);
-
 						// Normalize gender to lowercase
 						const normalizedGender = typeof passenger.gender === 'string'
 							? passenger.gender.toLowerCase() as "male" | "female"
 							: "male";
 
-						console.log("🔍 normalized gender for PassengerForm:", normalizedGender);
-
+						// Use stable key - only seatID (don't include data that changes on every keystroke!)
 						return (
-							<div key={uniqueKey}>
+							<div key={`seat-${passenger.seatID}`}>
 								<PassengerForm
-									key={`passenger-form-${passenger.seatID}-${normalizedGender}-${passenger.previousPassengerId || 'new'}`}
+									key={`passenger-form-${passenger.seatID}`}
 									seatId={passenger.seatID}
 									seatNo={passenger.seatNo}
 									gender={normalizedGender}

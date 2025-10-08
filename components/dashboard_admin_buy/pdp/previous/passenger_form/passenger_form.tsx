@@ -146,14 +146,6 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 	onPrevPassengerClick,
 	validationErrors,
 }) => {
-	// Component mounted
-	useEffect(() => {
-		// Component initialization logic here if needed
-	}, []); // Empty dependency array means this runs only on mount
-
-	// Log received props
-	console.log(`📋 PassengerForm Seat ${seatId} received gender prop:`, gender, "type:", typeof gender);
-
 	// Local state to track gender selection for UI consistency
 	const [localGender, setLocalGender] = useState<"male" | "female">(gender);
 
@@ -192,24 +184,16 @@ export const PassengerForm: React.FC<PassengerFormProps> = ({
 
 		return () => clearTimeout(timer);
 	}, [phoneNumber, seatId]);
-	// Keep local state in sync with props - always update when prop changes
+	// Keep local state in sync with props - only update when different
 	useEffect(() => {
 		// Normalize both for comparison
 		const normalizedPropGender = gender.toLowerCase() as "male" | "female";
 		const normalizedLocalGender = localGender.toLowerCase() as "male" | "female";
 
-		console.log(`🔄 Seat ${seatId}: Syncing gender prop "${gender}" (normalized: "${normalizedPropGender}") → local state "${localGender}" (normalized: "${normalizedLocalGender}")`);
-
 		if (normalizedLocalGender !== normalizedPropGender) {
-			console.log(`✅ Seat ${seatId}: Gender changing from "${localGender}" → "${normalizedPropGender}"`);
 			setLocalGender(normalizedPropGender);
 		}
-	}, [gender, seatId]);
-
-	// Force re-render when props change
-	useEffect(() => {
-		// Props change handling
-	}, [seatId, fName, lName, nationalCode, phoneNumber, gender]);
+	}, [gender]);
 
 
 	// Handle passenger removal
