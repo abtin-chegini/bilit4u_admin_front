@@ -19,10 +19,12 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import SearchComponent from "@/components/dashboard_admin_buy/plp/new/PLP/Search"
+import MyTripsComponent from "@/components/dashboard_admin_buy/trips/MyTripsComponent"
 import { cn } from "@/lib/utils"
 
 const menuItems = [
   { icon: CreditCard, label: "خرید آژانسی", id: "payments" },
+  { icon: FileText, label: "خریدهای من", id: "my-purchases" },
 ]
 
 export default function DashboardLayout() {
@@ -130,19 +132,34 @@ export default function DashboardLayout() {
         {/* Main Content */}
         <main className={`flex-1 p-6 space-y-6 transition-all duration-300 ${sidebarOpen ? 'mr-[280px]' : 'mr-[80px]'}`}>
           {/* Payments Section - خرید آژانسی */}
-          <motion.div
-            key="payments"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="w-full"
-          >
-            <SearchComponent
-              SourceCity="11320000"
-              DestinationCity="21310000"
-              TravelDate="14040710"
-            />
-          </motion.div>
+          {activeSection === "payments" && (
+            <motion.div
+              key="payments"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full"
+            >
+              <SearchComponent
+                SourceCity="11320000"
+                DestinationCity="21310000"
+                TravelDate="14040710"
+              />
+            </motion.div>
+          )}
+
+          {/* My Purchases Section - خریدهای من */}
+          {activeSection === "my-purchases" && (
+            <motion.div
+              key="my-purchases"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full"
+            >
+              <MyTripsComponent />
+            </motion.div>
+          )}
         </main>
 
         {/* Sidebar */}
