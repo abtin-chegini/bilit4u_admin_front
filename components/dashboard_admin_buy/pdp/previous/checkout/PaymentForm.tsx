@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/contexts/AuthContext";
 import axios from 'axios';
 import { useRouter } from "next/navigation";
 import {
@@ -39,7 +39,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ serviceData,
 	const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 	const [isTestingOrder, setIsTestingOrder] = useState(false);
 
-	const { data: session, status } = useSession();
+	const { session } = useAuth();
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [paymentMethod, setPaymentMethod] = useState<'bank' | 'wallet'>('bank');
 	const [paymentGateway, setPaymentGateway] = useState<'sep'>('sep');
@@ -238,7 +238,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ serviceData,
 			console.log('TEST: Creating order only (no payment)');
 
 			// Check if we have the necessary data
-			if (!session?.user?.accessToken) {
+			if (!session?.access_token) {
 				throw new Error('لطفا وارد حساب کاربری خود شوید');
 			}
 
@@ -318,8 +318,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ serviceData,
 					passengers: formattedPassengers,
 					OrderAssetId: assetId || null // Include the assetId for PDF generation
 				},
-				token: session.user.accessToken,
-				refreshToken: session.user.refreshToken || ''
+				token: session.access_token,
+				refreshToken: session.refresh_token || ''
 			};
 
 			console.log('📱 Additional Phone from UserStore:', user?.additionalPhone);
@@ -409,8 +409,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ serviceData,
 			console.log('Passengers:', storedPassengers);
 			console.log('Service Data:', serviceData);
 			console.log('Total Price (Toman):', totalPrice);
-			console.log('AccessToken:', session?.user.accessToken);
-			console.log('RefreshToken:', session?.user.refreshToken);
+			console.log('AccessToken:', session?.access_token);
+			console.log('RefreshToken:', session?.refresh_token);
 			console.log('OrderAssetId:', assetId);
 			console.log('📱 Additional Phone from UserStore:', user?.additionalPhone);
 			console.log('📧 Additional Email from UserStore:', user?.additionalEmail);
@@ -420,7 +420,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ serviceData,
 			console.log('🚀 Final addedEmail in payload:', user?.additionalEmail || user?.email || '');
 
 			// Check if we have the necessary data
-			if (!session?.user?.accessToken) {
+			if (!session?.access_token) {
 				throw new Error('لطفا وارد حساب کاربری خود شوید');
 			}
 
@@ -501,8 +501,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ serviceData,
 					passengers: formattedPassengers,
 					OrderAssetId: assetId || null // Include the assetId for PDF generation
 				},
-				token: session.user.accessToken,
-				refreshToken: session.user.refreshToken || ''
+				token: session.access_token,
+				refreshToken: session.refresh_token || ''
 			};
 
 			console.log('📱 Additional Phone from UserStore (handleSubmitPayment):', user?.additionalPhone);
@@ -569,8 +569,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ serviceData,
 			}
 
 			const buyTicketPayload = {
-				token: session.user.accessToken,
-				refreshToken: session.user.refreshToken || '',
+				token: session.access_token,
+				refreshToken: session.refresh_token || '',
 				BusTicket: {
 					CoToken: token || '',
 					SrvNo: ticketId,

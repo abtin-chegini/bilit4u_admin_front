@@ -112,7 +112,7 @@ const TopComponent: FunctionComponent<TopComponentProps> = ({
                 />
               </div>
             ) : (
-              <div className={`flex flex-row-reverse items-center gap-x-4 flex-1 justify-center transition-all duration-300 ease-in-out ${isAnimating ? 'opacity-70 scale-95' : 'opacity-100 scale-100'}`}>
+              <div className={`flex flex-row items-center gap-x-4 flex-1 justify-center transition-all duration-300 ease-in-out ${isAnimating ? 'opacity-70 scale-95' : 'opacity-100 scale-100'}`}>
                 {getCurrentPageTiles().map((dateStr, index) => {
                   const { month, day, monthText } = useDate(dateStr);
                   const isSelected = activeDate === dateStr;

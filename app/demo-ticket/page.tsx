@@ -4,8 +4,9 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-export default function DemoTicketPage() {
+function DemoTicketPageContent() {
 	const router = useRouter();
 
 	const handleTestTicketFlow = () => {
@@ -66,5 +67,13 @@ export default function DemoTicketPage() {
 				</CardContent>
 			</Card>
 		</div>
+	);
+}
+
+export default function DemoTicketPage() {
+	return (
+		<ProtectedRoute>
+			<DemoTicketPageContent />
+		</ProtectedRoute>
 	);
 }

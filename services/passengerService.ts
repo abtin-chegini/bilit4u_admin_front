@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = "https://api.bilit4u.com/order/api/v1";
+
+const ADMIN_API_URL = "https://api.bilit4u.com/admin/api/v1";
 
 // Create an axios instance with better timeout handling
 const axiosInstance = axios.create({
@@ -27,17 +28,24 @@ interface PassengersResponse {
 }
 
 export const passengerService = {
-	async getPassengers(token: string, refreshToken: string, userID: string): Promise<ApiPassenger[]> {
+	async getPassengers(token: string, refreshToken?: string, userID?: string): Promise<ApiPassenger[]> {
 		try {
-			const response = await axiosInstance.post(`${API_URL}/passengers`, {
-				token,
-				refreshToken,
-				userID
-			}, {
+			console.log('=== GetPassengers API Call ===');
+			console.log('Token:', token ? `${token.substring(0, 20)}...` : 'null');
+			console.log('Using endpoint:', `${ADMIN_API_URL}/admin/passengers`);
+			console.log('==============================');
+
+			const response = await axiosInstance.get(`${ADMIN_API_URL}/admin/passengers`, {
 				headers: {
 					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`,
 				},
 			});
+
+			console.log('=== GetPassengers API Response ===');
+			console.log('Response status:', response.status);
+			console.log('Response data:', response.data);
+			console.log('=================================');
 
 			// Return the passengers array from response
 			if (response.data && Array.isArray(response.data.passengers)) {
@@ -69,31 +77,45 @@ export const passengerService = {
 			throw new Error("userID is required and cannot be null");
 		}
 
+		console.log('=== UpdatePassenger API Call ===')
+		console.log('Token:', token ? `${token.substring(0, 20)}...` : 'null')
+		console.log('PassengerId:', passengerId)
+		console.log('Using endpoint:', `https://api.bilit4u.com/admin/api/v1/admin/passenger/${passengerId}`)
+		console.log('================================')
+
 		try {
-			const response = await axiosInstance.post(`${API_URL}/passengers/update`, {
-				PassengerId: passengerId,
-				Token: token,
-				RefreshToken: refreshToken,
-				Passenger: {
-					ID: parseInt(passengerId), // API expects uppercase ID in the update payload
-					userID: passengerData.userID,
-					fName: passengerData.fName,
-					lName: passengerData.lName,
-					gender: passengerData.gender,
-					nationalCode: passengerData.nationalCode,
-					dateOfBirth: passengerData.dateOfBirth,
-					phoneNumber: passengerData.phoneNumber,
-					address: passengerData.address || "",
-					email: passengerData.email || ""
-				}
-			}, {
+			// Prepare payload matching API requirements
+			const updatePayload = {
+				id: parseInt(passengerId),
+				fName: passengerData.fName,
+				lName: passengerData.lName,
+				gender: passengerData.gender ? "2" : "1", // Convert boolean to string: true = "2" (Male), false = "1" (Female)
+				nationalCode: passengerData.nationalCode,
+				address: passengerData.address || "",
+				dateOfBirth: passengerData.dateOfBirth || "",
+				phoneNumber: passengerData.phoneNumber || "",
+				email: passengerData.email || "",
+				seatNo: passengerData.seatNo || "",
+				seatID: passengerData.seatID ? parseInt(passengerData.seatID) : 0
+			};
+
+			console.log('Request payload:', JSON.stringify(updatePayload, null, 2))
+
+			const response = await axiosInstance.post(`https://api.bilit4u.com/admin/api/v1/admin/passenger/${passengerId}`, updatePayload, {
 				headers: {
+					'Authorization': `Bearer ${token}`,
 					'Content-Type': 'application/json',
 				},
 			});
 
+			// Debug: Log the API response
+			console.log('=== UpdatePassenger API Response ===')
+			console.log('Response status:', response.status)
+			console.log('Response data:', response.data)
+			console.log('====================================')
+
 			// Check if the update was successful
-			if (response.status !== 200) {
+			if (response.status !== 200 && response.status !== 204) {
 				throw new Error("خطا در به‌روزرسانی اطلاعات مسافر");
 			}
 		} catch (error: any) {
@@ -162,7 +184,7 @@ export const passengerService = {
 			console.log('Request payload:', JSON.stringify(requestPayload, null, 2))
 			console.log('==========================')
 
-			const response = await axiosInstance.post(`${API_URL}/passengers/add`, requestPayload, {
+			const response = await axiosInstance.post(`${ADMIN_API_URL}/passengers/add`, requestPayload, {
 				headers: {
 					'Content-Type': 'application/json',
 				},
@@ -196,24 +218,14 @@ export const passengerService = {
 		// Debug: Log the delete request
 		console.log('=== DeletePassenger API Call ===')
 		console.log('Token:', token ? `${token.substring(0, 20)}...` : 'null')
-		console.log('RefreshToken:', refreshToken ? `${refreshToken.substring(0, 20)}...` : 'null')
 		console.log('PassengerId:', passengerId)
+		console.log('Using endpoint:', `https://api.bilit4u.com/admin/api/v1/admin/passenger/${passengerId}`)
 		console.log('================================')
 
 		try {
-			const requestPayload = {
-				Token: token,
-				RefreshToken: refreshToken,
-				PassengerId: passengerId
-			}
-
-			// Debug: Log the complete request payload
-			console.log('=== Complete Delete Request ===')
-			console.log('Request payload:', JSON.stringify(requestPayload, null, 2))
-			console.log('==============================')
-
-			const response = await axiosInstance.post(`${API_URL}/passengers/delete`, requestPayload, {
+			const response = await axiosInstance.delete(`https://api.bilit4u.com/admin/api/v1/admin/passenger/${passengerId}`, {
 				headers: {
+					'Authorization': `Bearer ${token}`,
 					'Content-Type': 'application/json',
 				},
 			});
@@ -224,7 +236,7 @@ export const passengerService = {
 			console.log('Response data:', response.data)
 			console.log('==================================')
 
-			if (response.status !== 200 && response.status !== 201) {
+			if (response.status !== 200 && response.status !== 201 && response.status !== 204) {
 				throw new Error("خطا در حذف مسافر");
 			}
 		} catch (error: any) {

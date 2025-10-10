@@ -8,8 +8,10 @@ import { useFlowSessionStore } from '@/store/FlowSessionStore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { DashboardHeader } from '@/components/dashboard_main/dashboard-header';
 
-export default function TicketPurchasePage() {
+function TicketPurchasePageContent() {
 	const params = useParams();
 	const router = useRouter();
 	const { token, ticketId } = params;
@@ -109,67 +111,76 @@ export default function TicketPurchasePage() {
 
 	if (isLoading) {
 		return (
-			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
-				<Card className="w-full max-w-md">
-					<CardContent className="p-8 text-center">
-						<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-						<h2 className="text-lg font-iran-yekan-bold text-gray-800 mb-2">
-							در حال بارگذاری اطلاعات بلیط...
-						</h2>
-						<p className="text-gray-600 text-sm">
-							لطفا صبر کنید
-						</p>
-					</CardContent>
-				</Card>
-			</div>
+			<>
+				<DashboardHeader showSidebarTrigger={false} showBackButton={true} />
+				<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+					<Card className="w-full max-w-md">
+						<CardContent className="p-8 text-center">
+							<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+							<h2 className="text-lg font-iran-yekan-bold text-gray-800 mb-2">
+								در حال بارگذاری اطلاعات بلیط...
+							</h2>
+							<p className="text-gray-600 text-sm">
+								لطفا صبر کنید
+							</p>
+						</CardContent>
+					</Card>
+				</div>
+			</>
 		);
 	}
 
 	if (error) {
 		return (
-			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
-				<Card className="w-full max-w-md">
-					<CardContent className="p-8 text-center">
-						<div className="text-red-500 text-4xl mb-4">⚠️</div>
-						<h2 className="text-lg font-iran-yekan-bold text-gray-800 mb-2">
-							خطا در بارگذاری
-						</h2>
-						<p className="text-gray-600 text-sm mb-4">
-							{error}
-						</p>
-						<Button
-							onClick={handleBackToPLP}
-							className="bg-blue-600 hover:bg-blue-700"
-						>
-							بازگشت به داشبورد
-						</Button>
-					</CardContent>
-				</Card>
-			</div>
+			<>
+				<DashboardHeader showSidebarTrigger={false} showBackButton={true} />
+				<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+					<Card className="w-full max-w-md">
+						<CardContent className="p-8 text-center">
+							<div className="text-red-500 text-4xl mb-4">⚠️</div>
+							<h2 className="text-lg font-iran-yekan-bold text-gray-800 mb-2">
+								خطا در بارگذاری
+							</h2>
+							<p className="text-gray-600 text-sm mb-4">
+								{error}
+							</p>
+							<Button
+								onClick={handleBackToPLP}
+								className="bg-blue-600 hover:bg-blue-700"
+							>
+								بازگشت به داشبورد
+							</Button>
+						</CardContent>
+					</Card>
+				</div>
+			</>
 		);
 	}
 
 	if (!ticketData) {
 		return (
-			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
-				<Card className="w-full max-w-md">
-					<CardContent className="p-8 text-center">
-						<div className="text-gray-500 text-4xl mb-4">❌</div>
-						<h2 className="text-lg font-iran-yekan-bold text-gray-800 mb-2">
-							اطلاعات بلیط یافت نشد
-						</h2>
-						<p className="text-gray-600 text-sm mb-4">
-							لطفا مجددا تلاش کنید
-						</p>
-						<Button
-							onClick={handleBackToPLP}
-							className="bg-blue-600 hover:bg-blue-700"
-						>
-							بازگشت به داشبورد
-						</Button>
-					</CardContent>
-				</Card>
-			</div>
+			<>
+				<DashboardHeader showSidebarTrigger={false} showBackButton={true} />
+				<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+					<Card className="w-full max-w-md">
+						<CardContent className="p-8 text-center">
+							<div className="text-gray-500 text-4xl mb-4">❌</div>
+							<h2 className="text-lg font-iran-yekan-bold text-gray-800 mb-2">
+								اطلاعات بلیط یافت نشد
+							</h2>
+							<p className="text-gray-600 text-sm mb-4">
+								لطفا مجددا تلاش کنید
+							</p>
+							<Button
+								onClick={handleBackToPLP}
+								className="bg-blue-600 hover:bg-blue-700"
+							>
+								بازگشت به داشبورد
+							</Button>
+						</CardContent>
+					</Card>
+				</div>
+			</>
 		);
 	}
 
@@ -192,21 +203,32 @@ export default function TicketPurchasePage() {
 	};
 
 	return (
-		<div className="min-h-screen bg-gray-50">
-			{/* Bus Reservation Stepper */}
-			<div className="py-6">
-				<BusReservationWithStepper
-					seatPriceServiceDetail={seatPriceServiceDetail}
-					onTimeExpire={() => {
-						console.log('Time expired, redirecting to PLP');
-						router.push('/dashboard');
-					}}
-					hideContinueButton={false}
-					onContinue={() => {
-						console.log('Continue clicked, proceeding to payment step');
-					}}
-				/>
+		<>
+			<DashboardHeader showSidebarTrigger={false} showBackButton={true} />
+			<div className="min-h-screen bg-gray-50">
+				{/* Bus Reservation Stepper */}
+				<div className="py-6">
+					<BusReservationWithStepper
+						seatPriceServiceDetail={seatPriceServiceDetail}
+						onTimeExpire={() => {
+							console.log('Time expired, redirecting to PLP');
+							router.push('/dashboard');
+						}}
+						hideContinueButton={false}
+						onContinue={() => {
+							console.log('Continue clicked, proceeding to payment step');
+						}}
+					/>
+				</div>
 			</div>
-		</div>
+		</>
+	);
+}
+
+export default function TicketPurchasePage() {
+	return (
+		<ProtectedRoute>
+			<TicketPurchasePageContent />
+		</ProtectedRoute>
 	);
 }

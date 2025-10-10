@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import TicketIssuance from "@/components/PDP/Checkout/TicketIssuance";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useDialogStore } from '@/store/DialogStore';
 import PaymentForm from "@/components/PDP/PaymentForm/PaymentForm";
 import { captureAndUploadSeatLayout } from '@/utils/seatLayoutCapture';
@@ -49,7 +49,7 @@ export default function PassengerProfile() {
 	const selectedSeats = useTicketStore(state => state.selectedSeats);
 	const setTicketInfo = useTicketStore(state => state.setTicketInfo);
 	const { toast } = useToast();
-	const { data: session, status } = useSession();
+	const { session, loading: authLoading } = useAuth();
 
 	// Get store functions
 	const {
@@ -413,8 +413,8 @@ export default function PassengerProfile() {
 
 			if (assetIdToCleanup && seatmapToken) {
 				console.log("Component unmounting, cleaning up uploaded image");
-				const userToken = session?.user.accessToken || '';
-				const refreshToken = session?.user.refreshToken || '';
+				const userToken = session?.access_token || '';
+				const refreshToken = session?.refresh_token || '';
 				deleteSeatLayoutImage(assetIdToCleanup, userToken, refreshToken, seatmapToken).catch(error => {
 					console.error("Error cleaning up uploaded image on unmount:", error);
 				});
@@ -735,7 +735,7 @@ export default function PassengerProfile() {
 		}
 
 		// Check if user is logged in
-		if (status !== "authenticated") {
+		if (!session) {
 			console.log("User not authenticated, showing login dialog");
 			setIsLoginDialogOpen(true);
 			return;
@@ -775,8 +775,8 @@ export default function PassengerProfile() {
 
 			if (seatmapToken) {
 				try {
-					const userToken = session?.user.accessToken || '';
-					const refreshToken = session?.user.refreshToken || '';
+					const userToken = session?.access_token || '';
+					const refreshToken = session?.refresh_token || '';
 
 					console.log("About to call captureAndUploadSeatLayout with:", {
 						seatmapToken,
@@ -966,8 +966,8 @@ export default function PassengerProfile() {
 					try {
 						console.log("Deleting uploaded seat layout image with asset ID:", assetIdToDelete);
 
-						const userToken = session?.user.accessToken || '';
-						const refreshToken = session?.user.refreshToken || '';
+						const userToken = session?.access_token || '';
+						const refreshToken = session?.refresh_token || '';
 
 						const deleteResult = await deleteSeatLayoutImage(assetIdToDelete, userToken, refreshToken, seatmapToken);
 

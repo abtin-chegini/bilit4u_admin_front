@@ -1,57 +1,45 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
-import { useUserStore } from "@/store/UserStore"
 import {
-  X,
   CreditCard,
-  Bell,
-  Search,
   FileText,
-  Menu,
-  User,
-  Settings,
-  ChevronDown,
   LogOut,
+  Users,
+  Wallet,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarFooter,
+  SidebarInset,
+} from "@/components/ui/sidebar"
 import SearchComponent from "@/components/dashboard_admin_buy/plp/new/PLP/Search"
 import MyTripsComponent from "@/components/dashboard_admin_buy/trips/MyTripsComponent"
-import { cn } from "@/lib/utils"
+import { PassengerMain } from "@/components/dashboard_admin_buy/passenger/passenger-main"
+import { TransactionMain } from "@/components/dashboard_admin_buy/transactions/transaction-main"
+import { DashboardHeader } from "./dashboard-header"
 
 const menuItems = [
   { icon: CreditCard, label: "خرید آژانسی", id: "payments" },
   { icon: FileText, label: "خریدهای من", id: "my-purchases" },
+  { icon: Users, label: "مسافران", id: "passengers" },
+  { icon: Wallet, label: "تراکنش‌ها", id: "transactions" },
 ]
 
 export default function DashboardLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeSection, setActiveSection] = useState("payments")
-  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const { signOut, user } = useAuth()
-  const { user: profileUser } = useUserStore()
+  const { signOut } = useAuth()
   const router = useRouter()
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setProfileDropdownOpen(false)
-      }
-    }
-
-    if (profileDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [profileDropdownOpen])
 
   const handleLogout = async () => {
     await signOut()
@@ -59,218 +47,109 @@ export default function DashboardLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 " >
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        {/* Profile Dropdown */}
-        <div className="relative" ref={dropdownRef}>
-          <Button
-            variant="ghost"
-            onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-            className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50"
-          >
-            <div className="w-8 h-8 bg-[#0d5990] rounded-full flex items-center justify-center">
-              <User className="h-4 w-4 text-white" />
-            </div>
-            <span className="text-sm font-iran-yekan-bold text-gray-700">
-              {profileUser?.email || "user@example.com"}
-            </span>
-            <ChevronDown className="h-4 w-4 text-gray-500" />
-          </Button>
-
-          {/* Dropdown Menu */}
-          {profileDropdownOpen && (
-            <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-              <div className="py-1">
-                <button
-                  onClick={() => {
-                    setProfileDropdownOpen(false)
-                    // Handle settings click
-                  }}
-                  className="flex items-center justify-end gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 font-iran-yekan"
-                >
-                  <Settings className="h-4 w-4" />
-                  تنظیمات
-                </button>
-                <button
-                  onClick={() => {
-                    setProfileDropdownOpen(false)
-                    // Handle notifications click
-                  }}
-                  className="flex items-center justify-end gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 font-iran-yekan"
-                >
-                  <Bell className="h-4 w-4" />
-                  اعلان ها
-                </button>
-                <hr className="my-1 border-gray-200" />
-                <button
-                  onClick={() => {
-                    setProfileDropdownOpen(false)
-                    handleLogout()
-                  }}
-                  className="flex items-center justify-end gap-3 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-iran-yekan"
-                >
-                  <LogOut className="h-4 w-4" />
-                  خروج
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-xl text-gray-600 font-iran-yekan-bold">
-            <span>{profileUser?.firstName || profileUser?.profileData?.name || "نام ادمین پشتیبانی"}</span>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2">
-            {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
-        </div>
-      </header>
-
-      <div className="flex">
-        {/* Main Content */}
-        <main className={`flex-1 p-6 space-y-6 transition-all duration-300 ${sidebarOpen ? 'mr-[280px]' : 'mr-[80px]'}`}>
-          {/* Payments Section - خرید آژانسی */}
-          {activeSection === "payments" && (
-            <motion.div
-              key="payments"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="w-full"
-            >
-              <SearchComponent
-                SourceCity="11320000"
-                DestinationCity="21310000"
-                TravelDate="14040710"
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex min-h-screen w-full bg-gray-50" dir="rtl">
+        {/* Sidebar - Right Side */}
+        <Sidebar side="right" collapsible="icon" className="border-l">
+          <SidebarHeader className="border-b border-gray-200 p-4">
+            <div className="flex items-center justify-center relative">
+              {/* Full logo - visible when expanded */}
+              <img
+                src="https://cdn.bilit4u.com/logo/logob4u320.jpg"
+                alt="بلیط فور یو"
+                className="h-8 w-auto object-contain group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:invisible transition-all duration-200"
               />
-            </motion.div>
-          )}
-
-          {/* My Purchases Section - خریدهای من */}
-          {activeSection === "my-purchases" && (
-            <motion.div
-              key="my-purchases"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="w-full"
-            >
-              <MyTripsComponent />
-            </motion.div>
-          )}
-        </main>
-
-        {/* Sidebar */}
-        <AnimatePresence mode="wait">
-          <motion.aside
-            initial={{ width: sidebarOpen ? 280 : 80 }}
-            animate={{ width: sidebarOpen ? 280 : 80 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="bg-white border-r border-gray-200 h-[calc(100vh-73px)] overflow-hidden fixed right-0 top-[73px] z-40 shadow-lg"
-          >
-            {/* Sidebar Header */}
-            <div className="p-4 border-b border-gray-100">
-              <div className="flex items-center justify-center gap-3">
-                <div className="w-10 h-10 bg-[#2caffe] rounded-lg flex items-center justify-center">
-                  <span className="text-white text-lg font-bold">B</span>
-                </div>
-                <AnimatePresence>
-                  {sidebarOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: "auto" }}
-                      exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
-                      <h2 className="text-lg font-IranYekanBold text-gray-800">پنل مدیریت</h2>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              {/* Collapsed logo - visible when collapsed */}
+              <img
+                src="https://cdn.bilit4u.com/logo/Bilit4u_Admin_logo.svg"
+                alt="Admin"
+                className="h-14 w-14 object-contain opacity-0 invisible absolute group-data-[collapsible=icon]:opacity-100 group-data-[collapsible=icon]:visible transition-all duration-200"
+              />
             </div>
+          </SidebarHeader>
 
-            <nav className="p-4 space-y-1 pb-24">
-              {menuItems.map((item, index) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {menuItems.map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        onClick={() => setActiveSection(item.id)}
+                        isActive={activeSection === item.id}
+                        tooltip={item.label}
+                        className={
+                          activeSection === item.id
+                            ? "bg-gradient-to-r from-[#0d5990] to-[#0b4875] text-white hover:from-[#0b4875] hover:to-[#094060] shadow-lg border-r-4 border-white [&>svg]:text-white data-[active=true]:group-data-[collapsible=icon]:border-r-0"
+                            : "hover:bg-blue-50 hover:text-[#0d5990] hover:shadow-md transition-all duration-200"
+                        }
+                      >
+                        <item.icon className={activeSection === item.id ? "h-5 w-5 text-white" : "h-5 w-5"} />
+                        <span className={activeSection === item.id ? "font-IranYekanBold text-white" : "font-IranYekanBold"}>{item.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+
+          <SidebarFooter className="border-t border-gray-200 p-3">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={handleLogout}
+                  className="hover:bg-red-50 hover:text-red-600 text-gray-700 hover:shadow-md hover:border-r-4 hover:border-red-400 transition-all duration-200"
                 >
-                  <div className="relative group">
-                    <Button
-                      variant="ghost"
-                      onClick={() => setActiveSection(item.id)}
-                      className={cn(
-                        "w-full justify-between gap-3 h-14 text-right px-4 py-3 rounded-lg transition-all duration-200 group",
-                        "hover:bg-gray-50 hover:shadow-sm hover:scale-105",
-                        activeSection === item.id
-                          ? "bg-[#0d5990]/10 text-[#0d5990] border-r-4 border-[#0d5990] shadow-md"
-                          : "text-gray-700 hover:text-gray-900"
-                      )}
-                    >
-                      <AnimatePresence>
-                        {sidebarOpen && (
-                          <motion.span
-                            initial={{ opacity: 0, width: 0 }}
-                            animate={{ opacity: 1, width: "auto" }}
-                            exit={{ opacity: 0, width: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="text-sm font-IranYekanBold whitespace-nowrap overflow-hidden flex-1 text-right"
-                          >
-                            {item.label}
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-                      <item.icon className={cn(
-                        "h-5 w-5 flex-shrink-0 transition-colors duration-200",
-                        activeSection === item.id
-                          ? "text-[#0d5990]"
-                          : "text-gray-500 group-hover:text-gray-700"
-                      )} />
-                    </Button>
+                  <LogOut className="h-5 w-5" />
+                  <span className="font-IranYekanBold">خروج از حساب</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </Sidebar>
 
-                    {/* Hover Popover */}
-                    {!sidebarOpen && (
-                      <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 px-3 py-2 bg-gray-900 text-white text-sm font-IranYekanBold rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-50">
-                        {item.label}
-                        <div className="absolute left-full top-1/2 -translate-y-1/2 w-0 h-0 border-l-4 border-l-gray-900 border-t-4 border-t-transparent border-b-4 border-b-transparent"></div>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </nav>
+        {/* Main Content Area */}
+        <SidebarInset className="flex-1 flex flex-col">
+          {/* Header */}
+          <DashboardHeader />
 
-            {/* Sidebar Footer */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-100 bg-gray-50">
-              <Button
-                variant="ghost"
-                onClick={handleLogout}
-                className="w-full justify-between gap-3 h-12 px-4 py-3 rounded-lg transition-all duration-200 group hover:bg-red-50 hover:text-red-600 text-gray-700"
-              >
-                <AnimatePresence>
-                  {sidebarOpen && (
-                    <motion.span
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: "auto" }}
-                      exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="text-sm font-IranYekanBold whitespace-nowrap overflow-hidden flex-1 text-right"
-                    >
-                      خروج
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-                <X className="h-5 w-5 flex-shrink-0 transition-colors duration-200 text-gray-500 group-hover:text-red-600" />
-              </Button>
-            </div>
-          </motion.aside>
-        </AnimatePresence>
+          {/* Main Content */}
+          <main className="flex-1 p-6">
+            {/* Payments Section */}
+            {activeSection === "payments" && (
+              <div className="w-full">
+                <SearchComponent
+                  SourceCity="11320000"
+                  DestinationCity="21310000"
+                  TravelDate="14040710"
+                />
+              </div>
+            )}
+
+            {/* My Purchases Section */}
+            {activeSection === "my-purchases" && (
+              <div className="w-full">
+                <MyTripsComponent />
+              </div>
+            )}
+
+            {/* Passengers Section */}
+            {activeSection === "passengers" && (
+              <div className="w-full">
+                <PassengerMain />
+              </div>
+            )}
+
+            {/* Transactions Section */}
+            {activeSection === "transactions" && (
+              <div className="w-full">
+                <TransactionMain />
+              </div>
+            )}
+          </main>
+        </SidebarInset>
       </div>
-    </div>
+    </SidebarProvider>
   )
 }

@@ -855,7 +855,7 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 													</div>
 													<div className="space-y-4">
 														{/* Time Range Selector */}
-														<div className="space-y-2">
+														<div className="space-y-2" dir="ltr">
 															<TimeRangeSelector
 																onTimeChange={(timeValue: number) => {
 																	handleTimeChange(timeValue.toString());
@@ -1127,7 +1127,7 @@ const SearchComponent: FunctionComponent<SearchComponentProps> = ({
 									)}
 								</div>
 
-								<div className="flex flex-col gap-y-2 sm:gap-y-7 pb-6 sm:pt-5 xs:pt-5">
+								<div className="flex flex-col gap-y-2 sm:gap-y-7 pb-6 sm:pt-5 xs:pt-5" dir="ltr">
 									{isPending || initialLoading ? (
 										<>
 											<MainCard />
