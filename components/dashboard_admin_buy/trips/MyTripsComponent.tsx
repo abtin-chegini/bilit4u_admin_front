@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import moment from 'jalali-moment';
+import { formatDurationToPersian } from "@/lib/durationFormatter";
 
 function toPersianDigits(num: number | string): string {
 	return String(num).replace(/\d/g, (digit) =>
@@ -299,7 +300,7 @@ export default function MyTripsComponent() {
 			// Add missing fields from API response
 			ArrivalTime: ticket.arrivalTime ? toPersianDigits(ticket.arrivalTime) : 'نامشخص',
 			ArrivalDate: ticket.arrivalDate ? formatDate(ticket.arrivalDate) : 'نامشخص',
-			TravelDuration: ticket.travelDuration || 'نامشخص'
+			TravelDuration: ticket.travelDuration ? formatDurationToPersian(ticket.travelDuration) : 'نامشخص'
 		};
 	};
 
@@ -362,22 +363,13 @@ export default function MyTripsComponent() {
 		setError(null);
 
 		try {
-			// First, get userId if we don't have it
-			let currentUserId = userId;
-			if (!currentUserId) {
-				currentUserId = await fetchUserProfile(session.access_token);
-			}
+			console.log('📞 Fetching orders from API...');
+			console.log('📞 Using token:', session.access_token.substring(0, 20) + '...');
 
-			if (!currentUserId) {
-				throw new Error('شناسه کاربر یافت نشد');
-			}
-
-			console.log('📞 Fetching orders for userId:', currentUserId);
-
-			// Now fetch orders for this user
+			// Fetch orders - API determines user from Authorization token
 			const response = await axios({
 				method: 'GET',
-				url: `https://api.bilit4u.com/admin/api/v1/orders/user/${currentUserId}`,
+				url: 'https://api.bilit4u.com/admin/api/v1/orders/user/',
 				headers: {
 					'Content-Type': 'application/json',
 					'Authorization': `Bearer ${session.access_token}`

@@ -547,7 +547,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const fetchUserProfile = async (token: string): Promise<{ error: AuthError | null; profile?: any }> => {
 		try {
 			console.log('👤 [PROFILE] Fetching user profile...')
-			console.log('👤 [PROFILE] API Endpoint: http://localhost:5001/admin/api/v1/admin/profile')
+			console.log('👤 [PROFILE] API Endpoint: https://api.bilit4u.com/admin/api/v1/admin/profile')
 			console.log('👤 [PROFILE] Token:', token.substring(0, 20) + '...')
 
 			const response = await fetch('https://api.bilit4u.com/admin/api/v1/admin/profile', {

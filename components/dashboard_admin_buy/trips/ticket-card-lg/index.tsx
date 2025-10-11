@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useRouteInfoWithIds } from '@/lib/RouteMapData';
 import numberConvertor from "@/lib/numberConvertor";
 import { useToast } from "@/hooks/use-toast";
+import { formatDurationToPersian } from "@/lib/durationFormatter";
 
 // Import utility function or define it inline
 const toPersianDigits = (input: string | number): string => {
@@ -136,27 +137,7 @@ const TicketCardLg: React.FC<TicketCardLgProps> = ({ ticketDetails, orderData, i
   // Get route information using the city codes
   const routeInfo = useRouteInfoWithIds(srcCityCode, desCityCode);
 
-  // Format duration to Persian with hours and minutes (original word format)
-  const formatDurationToPersian = (duration: string | null) => {
-    if (!duration) return 'نامشخص';
-
-    try {
-      const [hours, minutes] = duration.split(':').map(Number);
-      const persianHours = numberConvertor(hours.toString());
-      const persianMinutes = numberConvertor(minutes.toString());
-
-      if (hours > 0 && minutes > 0) {
-        return `${persianHours} ساعت و ${persianMinutes} دقیقه`;
-      } else if (hours > 0) {
-        return `${persianHours} ساعت`;
-      } else if (minutes > 0) {
-        return `${persianMinutes} دقیقه`;
-      }
-      return 'نامشخص';
-    } catch (error) {
-      return 'نامشخص';
-    }
-  };
+  // Duration formatting moved to shared utility: /lib/durationFormatter.ts
 
   // Fixed Persian date parsing function for format like ۱۴۰۴/۰۴/۱۰
   const parsePersianDate = (persianDate: string) => {

@@ -6,6 +6,7 @@ import { SrvRequestResItem } from "@/constants/interfaces";
 import numberConvertor from "@/lib/numberConvertor";
 import Skeleton from "react-loading-skeleton";
 import { cx } from "class-variance-authority";
+import { formatDurationToPersian } from "@/lib/durationFormatter";
 import SeatData from "@/components/dashboard_admin_buy/plp/previous/PLP/Desktop/SeatData";
 import moment from "jalali-moment";
 import { useRouter } from "next/navigation";
@@ -62,26 +63,7 @@ const MainCard: FunctionComponent<MainCardProps> = ({
   const routeInfo = useRouteInfoWithIds(data?.SrcCityId, data?.DesCityId);
 
   // Format duration to Persian with hours and minutes
-  const formatDurationToPersian = (duration: string | null) => {
-    if (!duration) return 'نامشخص';
-
-    try {
-      const [hours, minutes] = duration.split(':').map(Number);
-      const persianHours = numberConvertor(hours.toString());
-      const persianMinutes = numberConvertor(minutes.toString());
-
-      if (hours > 0 && minutes > 0) {
-        return `${persianHours} ساعت و ${persianMinutes} دقیقه`;
-      } else if (hours > 0) {
-        return `${persianHours} ساعت`;
-      } else if (minutes > 0) {
-        return `${persianMinutes} دقیقه`;
-      }
-      return 'نامشخص';
-    } catch (error) {
-      return 'نامشخص';
-    }
-  };
+  // Duration formatting moved to shared utility: /lib/durationFormatter.ts
 
   // Parse Persian date format (DD/MM/YYYY) and convert to moment
   const parsePersianDate = (persianDate: string) => {

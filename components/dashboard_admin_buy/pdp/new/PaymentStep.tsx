@@ -12,6 +12,86 @@ import { useTicketStore } from '@/store/TicketStore';
 import { usePassengerStore } from '@/store/PassengerStore';
 import { useUserStore } from '@/store/UserStore';
 import axios from 'axios';
+import { getRouteInfo } from "@/lib/RouteMapData";
+import moment from "jalali-moment";
+
+// Helper function to convert Persian digits to English
+const toEnglishDigits = (str: string): string => {
+	const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+	let result = str;
+	persianDigits.forEach((persian, index) => {
+		result = result.replace(new RegExp(persian, 'g'), index.toString());
+	});
+	return result;
+};
+
+// Calculate arrival time based on departure time and duration
+const calculateArrivalTime = (departTime: string | undefined, duration: string | null) => {
+	if (!departTime || !duration) {
+		return '';
+	}
+
+	try {
+		const cleanDepartTime = toEnglishDigits(departTime);
+		const [dHours, dMinutes] = cleanDepartTime.split(':').map(num => parseInt(num, 10));
+		const [durHours, durMinutes] = duration.split(':').map(num => parseInt(num, 10));
+
+		const departMoment = moment().startOf('day').hours(dHours).minutes(dMinutes);
+		const arrivalMoment = departMoment.clone().add(durHours, 'hours').add(durMinutes, 'minutes');
+
+		const arrivalHours = arrivalMoment.hours();
+		const arrivalMinutes = arrivalMoment.minutes();
+
+		return `${arrivalHours.toString().padStart(2, '0')}:${arrivalMinutes.toString().padStart(2, '0')}`;
+	} catch (error) {
+		console.error('Error calculating arrival time:', error);
+		return '';
+	}
+};
+
+// Parse Persian date
+const parsePersianDate = (persianDate: string) => {
+	const englishDate = toEnglishDigits(persianDate);
+	const parts = englishDate.split('/');
+
+	if (parts.length === 3) {
+		// Check if format is DD/MM/YYYY or YYYY/MM/DD
+		if (parts[0].length === 4) {
+			// YYYY/MM/DD format
+			return moment(`${parts[0]}/${parts[1]}/${parts[2]}`, 'jYYYY/jMM/jDD');
+		} else {
+			// DD/MM/YYYY format
+			return moment(`${parts[2]}/${parts[1]}/${parts[0]}`, 'jYYYY/jMM/jDD');
+		}
+	}
+	return moment();
+};
+
+// Calculate arrival date
+const calculateArrivalDate = (departDate: string | undefined, departTime: string | undefined, duration: string | null) => {
+	if (!departDate || !departTime || !duration) {
+		return '';
+	}
+
+	try {
+		const [dHours, dMinutes] = departTime.split(':').map(Number);
+		const [durHours, durMinutes] = duration.split(':').map(Number);
+
+		const departMoment = parsePersianDate(departDate);
+		departMoment.hours(dHours).minutes(dMinutes).seconds(0);
+
+		const arrivalMoment = departMoment.clone().add(durHours, 'hours').add(durMinutes, 'minutes');
+
+		const arrivalYear = arrivalMoment.jYear();
+		const arrivalMonth = arrivalMoment.jMonth() + 1;
+		const arrivalDay = arrivalMoment.jDate();
+
+		return `${arrivalYear}/${arrivalMonth.toString().padStart(2, '0')}/${arrivalDay.toString().padStart(2, '0')}`;
+	} catch (error) {
+		console.error('Error calculating arrival date:', error);
+		return '';
+	}
+};
 
 interface PaymentStepProps {
 	onBack: () => void;
@@ -104,6 +184,18 @@ export const PaymentStep = forwardRef<{ initiatePayment: () => void }, PaymentSt
 				// Use srvTicket if available, otherwise use serviceData
 				const ticketData = srvTicket || serviceData;
 
+				// Get route info for duration calculation
+				const routeInfo = getRouteInfo(ticketData?.SrcCityCode, ticketData?.DesCityCode);
+				console.log('📍 Route Info:', routeInfo);
+
+				// Calculate arrival time and date
+				const calculatedArrivalTime = calculateArrivalTime(ticketData?.DepartTime, routeInfo.duration);
+				const calculatedArrivalDate = calculateArrivalDate(ticketData?.DepartDate, ticketData?.DepartTime, routeInfo.duration);
+
+				console.log('🕒 Calculated arrival time:', calculatedArrivalTime);
+				console.log('📅 Calculated arrival date:', calculatedArrivalDate);
+				console.log('⏱️ Travel duration:', routeInfo.duration);
+
 				// Format passengers according to the required structure (gender: 2→true, 1→false)
 				const formattedPassengers = storedPassengers.map(passenger => {
 					return {
@@ -129,11 +221,11 @@ export const PaymentStep = forwardRef<{ initiatePayment: () => void }, PaymentSt
 					srvName: ticketData?.Description || 'Bus Service',
 					coToken: ticketData?.RequestToken || '',
 					departureTime: ticketData?.DepartTime || '',
-					arrivalTime: '', // Will be calculated
+					arrivalTime: calculatedArrivalTime || '',
 					departureCity: ticketData?.SrcCityName || '',
 					arrivalCity: ticketData?.DesCityName || '',
 					departureDate: ticketData?.DepartDate || '',
-					arrivalDate: '', // Will be calculated
+					arrivalDate: calculatedArrivalDate || '',
 					price: pricePerTicket, // Use calculated price
 					companyName: ticketData?.CoName || '',
 					isCharger: Boolean(ticketData?.IsCharger),
@@ -145,7 +237,7 @@ export const PaymentStep = forwardRef<{ initiatePayment: () => void }, PaymentSt
 					isAirConditionType: Boolean(ticketData?.IsAirConditionType),
 					srcCityCode: ticketData?.SrcCityCode || '',
 					desCityCode: ticketData?.DesCityCode || '',
-					travelDuration: ''
+					travelDuration: routeInfo.duration || ''
 				};
 
 				// Prepare buyticketwallet payload
