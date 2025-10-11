@@ -80,7 +80,7 @@ export const passengerService = {
 		console.log('=== UpdatePassenger API Call ===')
 		console.log('Token:', token ? `${token.substring(0, 20)}...` : 'null')
 		console.log('PassengerId:', passengerId)
-		console.log('Using endpoint:', `https://api.bilit4u.com/admin/api/v1/admin/passenger/${passengerId}`)
+		console.log('Using endpoint:', `https://api.bilit4u.com/admin/api/v1/admin/passenger/update`)
 		console.log('================================')
 
 		try {
@@ -101,7 +101,7 @@ export const passengerService = {
 
 			console.log('Request payload:', JSON.stringify(updatePayload, null, 2))
 
-			const response = await axiosInstance.post(`https://api.bilit4u.com/admin/api/v1/admin/passenger/${passengerId}`, updatePayload, {
+			const response = await axiosInstance.post(`https://api.bilit4u.com/admin/api/v1/admin/passenger/update`, updatePayload, {
 				headers: {
 					'Authorization': `Bearer ${token}`,
 					'Content-Type': 'application/json',
