@@ -77,30 +77,30 @@ const TopComponent: FunctionComponent<TopComponentProps> = ({
       <div className="w-full py-2 gap-x-4 items-center hidden sm:flex relative">
         <TooltipProvider>
           <div className="flex items-center justify-between w-full">
-
-            {/* Right Arrow Button */}
+            {/* Left Arrow Button */}
             <Tooltip delayDuration={300}>
               <TooltipTrigger asChild>
                 <button
-                  onClick={goToNextPage}
-                  disabled={currentPage === totalPages - 1 || isAnimating}
+                  onClick={goToPreviousPage}
+                  disabled={currentPage === 0 || isAnimating}
                   className={cx([
-                    "flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 mr-2",
-                    currentPage === totalPages - 1 || isAnimating
+                    "flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 ml-2",
+                    currentPage === 0 || isAnimating
                       ? "text-gray-300 cursor-not-allowed"
                       : "text-[#0D5990] hover:bg-gray-100 cursor-pointer hover:scale-110 active:scale-95"
                   ])}
                 >
-                  <ChevronLeftIcon size={24} />
+                  <ChevronRightIcon size={24} />
                 </button>
               </TooltipTrigger>
               <TooltipContent
                 side="bottom"
                 className="bg-gray-800 text-white text-xs font-IranYekanRegular px-2 py-1"
               >
-                <p>{currentPage === totalPages - 1 ? "روزهای بعدی (غیرفعال)" : "روزهای بعدی"}</p>
+                <p>{currentPage === 0 ? "روزهای قبلی (غیرفعال)" : "روزهای قبلی"}</p>
               </TooltipContent>
             </Tooltip>
+
             {/* Days Container */}
             {isPending ? (
               <div className="flex items-center gap-x-4 overflow-hidden flex-1 justify-center">
@@ -135,30 +135,30 @@ const TopComponent: FunctionComponent<TopComponentProps> = ({
                 })}
               </div>
             )}
-
-            {/* Left Arrow Button */}
+            {/* Right Arrow Button */}
             <Tooltip delayDuration={300}>
               <TooltipTrigger asChild>
                 <button
-                  onClick={goToPreviousPage}
-                  disabled={currentPage === 0 || isAnimating}
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages - 1 || isAnimating}
                   className={cx([
-                    "flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 ml-2",
-                    currentPage === 0 || isAnimating
+                    "flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 mr-2",
+                    currentPage === totalPages - 1 || isAnimating
                       ? "text-gray-300 cursor-not-allowed"
                       : "text-[#0D5990] hover:bg-gray-100 cursor-pointer hover:scale-110 active:scale-95"
                   ])}
                 >
-                  <ChevronRightIcon size={24} />
+                  <ChevronLeftIcon size={24} />
                 </button>
               </TooltipTrigger>
               <TooltipContent
                 side="bottom"
                 className="bg-gray-800 text-white text-xs font-IranYekanRegular px-2 py-1"
               >
-                <p>{currentPage === 0 ? "روزهای قبلی (غیرفعال)" : "روزهای قبلی"}</p>
+                <p>{currentPage === totalPages - 1 ? "روزهای بعدی (غیرفعال)" : "روزهای بعدی"}</p>
               </TooltipContent>
             </Tooltip>
+
 
           </div>
         </TooltipProvider>

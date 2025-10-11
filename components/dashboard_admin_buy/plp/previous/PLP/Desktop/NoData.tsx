@@ -13,7 +13,7 @@ const NoData = () => {
       <div className="flex flex-col items-center gap-y-5 xl:mt-[60px] lg:mt-[50px] md:mt-[40px] sm:mt-[30px] mt-[20px] ">
         <div className="xl:w-[580px] xl:h-[586px] lg:w-[486px] lg:h-[523px] md:w-[445px] md:h-[450px] sm:w-[370px] sm:h-[350px] w-[258px] h-[245px]">
           <Image
-            src="/images/nodata.png"
+            src="https://cdn.bilit4u.com/images/nodata.png"
             alt=""
             width="2000"
             height="2000"
