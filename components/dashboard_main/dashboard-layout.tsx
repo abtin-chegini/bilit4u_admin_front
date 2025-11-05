@@ -9,6 +9,7 @@ import {
   LogOut,
   Users,
   Wallet,
+  MessageSquare,
 } from "lucide-react"
 import {
   SidebarProvider,
@@ -27,6 +28,7 @@ import SearchComponent from "@/components/dashboard_admin_buy/plp/new/PLP/Search
 import MyTripsComponent from "@/components/dashboard_admin_buy/trips/MyTripsComponent"
 import { PassengerMain } from "@/components/dashboard_admin_buy/passenger/passenger-main"
 import { TransactionMain } from "@/components/dashboard_admin_buy/transactions/transaction-main"
+import { SupportMain } from "@/components/dashboard_admin_buy/support/support-main"
 import { DashboardHeader } from "./dashboard-header"
 
 const menuItems = [
@@ -34,6 +36,7 @@ const menuItems = [
   { icon: FileText, label: "خریدهای من", id: "my-purchases" },
   { icon: Users, label: "مسافران", id: "passengers" },
   { icon: Wallet, label: "تراکنش‌ها", id: "transactions" },
+  { icon: MessageSquare, label: "درخواست های پشتیبانی", id: "support" },
 ]
 
 export default function DashboardLayout() {
@@ -145,6 +148,13 @@ export default function DashboardLayout() {
             {activeSection === "transactions" && (
               <div className="w-full">
                 <TransactionMain />
+              </div>
+            )}
+
+            {/* Support Section */}
+            {activeSection === "support" && (
+              <div className="w-full">
+                <SupportMain />
               </div>
             )}
           </main>
