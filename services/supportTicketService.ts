@@ -26,18 +26,24 @@ export interface SupportTicket {
 }
 
 export interface SupportUser {
+	success?: boolean;
+	userId?: number;
 	name: string;
 	email: string;
 	phoneNumber: string;
+	role?: string;
+	emailConfirmed?: boolean;
 }
 
 export interface SupportResponse {
 	id: number;
-	refnum?: string;
+	ticketId?: number;
 	message: string;
 	createdAt: string;
+	respondedBy?: 'SUPPORT' | 'USER';
+	adminUserId?: number;
 	userId?: number;
-	adminId?: number;
+	isInternal?: boolean;
 	isAdmin?: boolean;
 }
 
@@ -111,13 +117,14 @@ export const supportTicketService = {
 
 	async getUserById(token: string, userId: number): Promise<SupportUser> {
 		try {
+			const endpoint = `${SUPPORT_API_URL}/admin/users/${userId}`;
 			console.log('=== GetUserById API Call ===');
 			console.log('Token:', token ? `${token.substring(0, 20)}...` : 'null');
 			console.log('UserId:', userId);
-			console.log('Using endpoint:', `${SUPPORT_API_URL}/admin/users/${userId}`);
+			console.log('Using endpoint:', endpoint);
 			console.log('==============================');
 
-			const response = await axiosInstance.get(`${SUPPORT_API_URL}/admin/users/${userId}`, {
+			const response = await axiosInstance.get(endpoint, {
 				headers: {
 					'Content-Type': 'application/json',
 					'Authorization': `Bearer ${token}`,
@@ -129,7 +136,21 @@ export const supportTicketService = {
 			console.log('Response data:', response.data);
 			console.log('=================================');
 
-			return response.data;
+			// Handle response format: { success, userId, name, email, phoneNumber, role, emailConfirmed }
+			const responseData = response.data;
+			if (responseData.success && responseData.userId) {
+				return {
+					success: responseData.success,
+					userId: responseData.userId,
+					name: responseData.name || '',
+					email: responseData.email || '',
+					phoneNumber: responseData.phoneNumber || '',
+					role: responseData.role,
+					emailConfirmed: responseData.emailConfirmed,
+				};
+			}
+
+			return responseData;
 		} catch (error: any) {
 			console.error("Error in getUserById:", error);
 
@@ -141,7 +162,7 @@ export const supportTicketService = {
 		}
 	},
 
-	async getTicketByRefnum(token: string, refnum: string): Promise<SupportTicket> {
+	async getTicketByRefnum(token: string, refnum: string): Promise<{ success: boolean; ticket: SupportTicket & { responses?: SupportResponse[] } }> {
 		try {
 			const endpoint = `${SUPPORT_API_URL}/admin/tickets/responses/${refnum}`;
 			console.log('=== GetTicketByRefnum API Call ===');
@@ -162,7 +183,16 @@ export const supportTicketService = {
 			console.log('Response data:', response.data);
 			console.log('=================================');
 
-			return response.data;
+			// Handle response format: { success: true, ticket: { ... } }
+			const responseData = response.data;
+			if (responseData.success && responseData.ticket) {
+				return {
+					success: responseData.success,
+					ticket: responseData.ticket
+				};
+			}
+
+			return responseData;
 		} catch (error: any) {
 			console.error("Error in getTicketByRefnum:", error);
 
@@ -230,6 +260,49 @@ export const supportTicketService = {
 			}
 
 			throw new Error("خطا در دریافت پاسخ‌های درخواست پشتیبانی");
+		}
+	},
+
+	async sendResponse(token: string, ticketId: number, message: string, status?: string): Promise<any> {
+		try {
+			const endpoint = `${SUPPORT_API_URL}/admin/tickets/${ticketId}/respond`;
+			console.log('=== SendResponse API Call ===');
+			console.log('Token:', token ? `${token.substring(0, 20)}...` : 'null');
+			console.log('TicketId:', ticketId);
+			console.log('Message:', message);
+			console.log('Status:', status);
+			console.log('Using endpoint:', endpoint);
+			console.log('==============================');
+
+			const requestBody: any = {
+				message: message
+			};
+
+			if (status) {
+				requestBody.status = status;
+			}
+
+			const response = await axiosInstance.post(endpoint, requestBody, {
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`,
+				},
+			});
+
+			console.log('=== SendResponse API Response ===');
+			console.log('Response status:', response.status);
+			console.log('Response data:', response.data);
+			console.log('=================================');
+
+			return response.data;
+		} catch (error: any) {
+			console.error("Error in sendResponse:", error);
+
+			if (error.response?.status === 401) {
+				throw new Error("جلسه منقضی شده است. لطفاً مجدداً وارد شوید.");
+			}
+
+			throw new Error(error.response?.data?.message || "خطا در ارسال پاسخ");
 		}
 	},
 };
