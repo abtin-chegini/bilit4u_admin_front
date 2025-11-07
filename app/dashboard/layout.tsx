@@ -11,6 +11,7 @@ import {
   Wallet,
   MessageSquare,
   Building2,
+  MapPin,
 } from "lucide-react"
 import {
   SidebarProvider,
@@ -32,7 +33,8 @@ const menuItems = [
   { icon: CreditCard, label: "خرید آژانسی", id: "payments", path: "/dashboard" },
   { icon: FileText, label: "خریدهای من", id: "my-purchases", path: "/dashboard/my-purchases" },
   { icon: Users, label: "مسافران", id: "passengers", path: "/dashboard/passengers" },
-  { icon: Building2, label: "افزودن شرکت", id: "companies", path: "/dashboard/companies" },
+  { icon: Building2, label: "شرکت‌ها", id: "companies", path: "/dashboard/companies" },
+  { icon: MapPin, label: "ترمینال‌ها", id: "terminals", path: "/dashboard/terminals" },
   { icon: Wallet, label: "تراکنش‌ها", id: "transactions", path: "/dashboard/transactions" },
   { icon: MessageSquare, label: "درخواست های پشتیبانی", id: "support", path: "/dashboard/support" },
 ]
@@ -57,6 +59,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     }
     if (pathname.startsWith('/dashboard/companies')) {
       return 'companies'
+    }
+    if (pathname.startsWith('/dashboard/terminals')) {
+      return 'terminals'
     }
     if (pathname.startsWith('/dashboard/transactions')) {
       return 'transactions'
