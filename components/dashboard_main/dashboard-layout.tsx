@@ -10,6 +10,7 @@ import {
   Users,
   Wallet,
   MessageSquare,
+  ShoppingBag,
 } from "lucide-react"
 import {
   SidebarProvider,
@@ -29,12 +30,14 @@ import MyTripsComponent from "@/components/dashboard_admin_buy/trips/MyTripsComp
 import { PassengerMain } from "@/components/dashboard_admin_buy/passenger/passenger-main"
 import { TransactionMain } from "@/components/dashboard_admin_buy/transactions/transaction-main"
 import { SupportMain } from "@/components/dashboard_admin_buy/support/support-main"
+import { SalesMain } from "@/components/dashboard_admin_buy/sales/sales-main"
 import { DashboardHeader } from "./dashboard-header"
 
 const menuItems = [
   { icon: CreditCard, label: "خرید آژانسی", id: "payments" },
   { icon: FileText, label: "خریدهای من", id: "my-purchases" },
   { icon: Users, label: "مسافران", id: "passengers" },
+  { icon: ShoppingBag, label: "خریدها", id: "sales" },
   { icon: Wallet, label: "تراکنش‌ها", id: "transactions" },
   { icon: MessageSquare, label: "درخواست های پشتیبانی", id: "support" },
 ]
@@ -141,6 +144,13 @@ export default function DashboardLayout() {
             {activeSection === "passengers" && (
               <div className="w-full">
                 <PassengerMain />
+              </div>
+            )}
+
+            {/* Sales Section */}
+            {activeSection === "sales" && (
+              <div className="w-full">
+                <SalesMain />
               </div>
             )}
 
