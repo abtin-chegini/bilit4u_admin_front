@@ -22,6 +22,8 @@ interface Company {
   countryID: number
   latitude: number
   longitude: number
+  companyID?: number
+  terminalID?: number
 }
 
 export function CompanyMain() {
@@ -33,6 +35,8 @@ export function CompanyMain() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editingCompany, setEditingCompany] = useState<Company | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   // Fetch companies from API
   const fetchCompanies = async () => {
@@ -71,7 +75,13 @@ export function CompanyMain() {
 
   const handleClearFilters = () => {
     setSearchTerm("")
+    setCurrentPage(1) // Reset to first page when clearing filters
   }
+
+  // Reset to first page when search term changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
 
   const handleOpenAddDialog = () => {
     setEditingCompany(null) // Clear any editing company
@@ -108,10 +118,10 @@ export function CompanyMain() {
         email: newCompany.email || '',
         webSite: newCompany.webSite || '',
         logo: newCompany.logo || '',
-        cityID: newCompany.cityID || 1,
-        countryID: newCompany.countryID || 1,
-        latitude: newCompany.latitude || 0,
-        longitude: newCompany.longitude || 0
+        cityID: newCompany.cityID ?? 1,
+        countryID: newCompany.countryID ?? 1,
+        latitude: newCompany.latitude ?? 0,
+        longitude: newCompany.longitude ?? 0
       }
 
       await companyService.addCompany(session.access_token, companyPayload)
@@ -146,8 +156,9 @@ export function CompanyMain() {
     }
 
     try {
-      // Prepare the update payload
+      // Prepare the update payload with new API format
       const updatePayload = {
+        id: updatedCompany.id,
         name: updatedCompany.name,
         description: updatedCompany.description || '',
         address: updatedCompany.address || '',
@@ -155,13 +166,15 @@ export function CompanyMain() {
         email: updatedCompany.email || '',
         webSite: updatedCompany.webSite || '',
         logo: updatedCompany.logo || '',
-        cityID: updatedCompany.cityID || 1,
-        countryID: updatedCompany.countryID || 1,
-        latitude: updatedCompany.latitude || 0,
-        longitude: updatedCompany.longitude || 0
+        cityID: updatedCompany.cityID ?? 1,
+        countryID: updatedCompany.countryID ?? 1,
+        latitude: updatedCompany.latitude ?? 0,
+        longitude: updatedCompany.longitude ?? 0,
+        companyID: updatedCompany.companyID ?? updatedCompany.id,
+        terminalID: updatedCompany.terminalID ?? 0
       }
 
-      await companyService.updateCompany(session.access_token, updatedCompany.id, updatePayload)
+      await companyService.updateCompany(session.access_token, updatePayload)
 
       // Refresh list after successful update
       await fetchCompanies()
@@ -176,37 +189,6 @@ export function CompanyMain() {
       toast({
         title: "خطا",
         description: err.message || "خطا در ویرایش اطلاعات شرکت",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleDeleteCompany = async (companyId: number) => {
-    if (!session?.access_token) {
-      toast({
-        title: "خطا",
-        description: "لطفاً ابتدا وارد حساب کاربری خود شوید",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      await companyService.deleteCompany(session.access_token, companyId)
-
-      // Refresh list after successful deletion
-      await fetchCompanies()
-
-      toast({
-        title: "موفق",
-        description: "شرکت با موفقیت حذف شد",
-        variant: "default",
-      })
-    } catch (err: any) {
-      console.error('Error deleting company:', err)
-      toast({
-        title: "خطا",
-        description: err.message || "خطا در حذف شرکت",
         variant: "destructive",
       })
     }
@@ -257,7 +239,10 @@ export function CompanyMain() {
             searchTerm={searchTerm}
             onOpenAddDialog={handleOpenAddDialog}
             onEditCompany={handleEditCompany}
-            onDeleteCompany={handleDeleteCompany}
+            currentPage={currentPage}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={setItemsPerPage}
           />
         )}
 

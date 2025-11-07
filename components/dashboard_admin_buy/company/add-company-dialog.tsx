@@ -16,6 +16,12 @@ const nameSchema = z
   .min(1, "نام شرکت الزامی است")
   .max(100, "نام شرکت نمی‌تواند بیش از ۱۰۰ کاراکتر باشد")
 
+const optionalStringSchema = z
+  .string()
+  .trim()
+  .optional()
+  .or(z.literal(""))
+
 const urlSchema = z
   .string()
   .trim()
@@ -30,6 +36,16 @@ const emailSchema = z
   .optional()
   .or(z.literal(""))
 
+const companyFormSchema = z.object({
+  name: nameSchema,
+  description: optionalStringSchema,
+  address: optionalStringSchema,
+  phone: optionalStringSchema,
+  email: emailSchema,
+  webSite: urlSchema,
+  logo: urlSchema,
+})
+
 interface Company {
   id: number
   name: string
@@ -43,6 +59,8 @@ interface Company {
   countryID: number
   latitude: number
   longitude: number
+  companyID?: number
+  terminalID?: number
 }
 
 interface AddCompanyDialogProps {
@@ -122,14 +140,15 @@ export function AddCompanyDialog({ isOpen, onClose, onAddCompany, editCompany, o
           break
         case 'logo':
         case 'webSite':
-          if (value.trim()) {
-            urlSchema.parse(value)
-          }
+          urlSchema.parse(value)
           break
         case 'email':
-          if (value.trim()) {
-            emailSchema.parse(value)
-          }
+          emailSchema.parse(value)
+          break
+        case 'phone':
+        case 'address':
+        case 'description':
+          optionalStringSchema.parse(value)
           break
       }
 
@@ -153,55 +172,24 @@ export function AddCompanyDialog({ isOpen, onClose, onAddCompany, editCompany, o
   }
 
   const validateForm = (): boolean => {
-    const errors: Record<string, string> = {}
+    const result = companyFormSchema.safeParse(formData)
 
-    // Validate required fields
-    if (!formData.name.trim()) {
-      errors.name = 'نام شرکت الزامی است'
-    } else {
-      try {
-        nameSchema.parse(formData.name)
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          errors.name = error.errors[0].message
+    if (!result.success) {
+      const errors: Record<string, string> = {}
+
+      result.error.issues.forEach(issue => {
+        const fieldName = issue.path[0] as keyof FormData
+        if (fieldName) {
+          errors[fieldName] = issue.message
         }
-      }
+      })
+
+      setFieldErrors(errors)
+      return false
     }
 
-    // Validate optional URL fields
-    if (formData.logo.trim()) {
-      try {
-        urlSchema.parse(formData.logo)
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          errors.logo = error.errors[0].message
-        }
-      }
-    }
-
-    if (formData.webSite.trim()) {
-      try {
-        urlSchema.parse(formData.webSite)
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          errors.webSite = error.errors[0].message
-        }
-      }
-    }
-
-    // Validate email if provided
-    if (formData.email.trim()) {
-      try {
-        emailSchema.parse(formData.email)
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          errors.email = error.errors[0].message
-        }
-      }
-    }
-
-    setFieldErrors(errors)
-    return Object.keys(errors).length === 0
+    setFieldErrors({})
+    return true
   }
 
   const handleSubmit = async () => {
@@ -218,15 +206,18 @@ export function AddCompanyDialog({ isOpen, onClose, onAddCompany, editCompany, o
         email: formData.email.trim(),
         webSite: formData.webSite.trim(),
         logo: formData.logo.trim(),
-        cityID: 1,
-        countryID: 1,
-        latitude: 0,
-        longitude: 0
+        cityID: editCompany?.cityID ?? 1,
+        countryID: editCompany?.countryID ?? 1,
+        latitude: editCompany?.latitude ?? 0,
+        longitude: editCompany?.longitude ?? 0,
+        companyID: editCompany?.companyID,
+        terminalID: editCompany?.terminalID
       }
 
       if (isEditMode && editCompany && onEditCompany) {
         // Edit existing company
         await onEditCompany({
+          ...editCompany,
           ...companyPayload,
           id: editCompany.id
         } as Company)

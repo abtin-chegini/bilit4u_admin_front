@@ -22,6 +22,39 @@ interface ApiCompany {
 	longitude: number;
 }
 
+interface CreateCompanyPayload {
+	name: string;
+	description?: string;
+	address?: string;
+	phone?: string;
+	email?: string;
+	webSite?: string;
+	logo?: string;
+	cityID?: number;
+	countryID?: number;
+	latitude?: number;
+	longitude?: number;
+	companyID?: number;
+	terminalID?: number;
+}
+
+interface UpdateCompanyPayload {
+	id: number;
+	name: string;
+	description?: string;
+	address?: string;
+	phone?: string;
+	email?: string;
+	webSite?: string;
+	logo?: string;
+	cityID?: number;
+	countryID?: number;
+	latitude?: number;
+	longitude?: number;
+	companyID?: number;
+	terminalID?: number;
+}
+
 interface CompaniesResponse {
 	companies: {
 		pageIndex: number;
@@ -32,18 +65,32 @@ interface CompaniesResponse {
 }
 
 export const companyService = {
-	async getCompanies(token: string): Promise<ApiCompany[]> {
+	async getCompanies(
+		token: string,
+		pageIndex?: number,
+		pageSize?: number
+	): Promise<ApiCompany[]> {
 		try {
 			console.log('=== GetCompanies API Call ===');
 			console.log('Token:', token ? `${token.substring(0, 20)}...` : 'null');
 			console.log('Using endpoint:', `${LOCATION_API_URL}/companies/`);
+			console.log('Pagination:', { pageIndex, pageSize });
 			console.log('==============================');
+
+			const params: Record<string, string> = {};
+			if (pageIndex !== undefined) {
+				params.pageIndex = pageIndex.toString();
+			}
+			if (pageSize !== undefined) {
+				params.pageSize = pageSize.toString();
+			}
 
 			const response = await axiosInstance.get(`${LOCATION_API_URL}/companies/`, {
 				headers: {
 					'Content-Type': 'application/json',
 					'Authorization': `Bearer ${token}`,
 				},
+				params: Object.keys(params).length > 0 ? params : undefined,
 			});
 
 			console.log('=== GetCompanies API Response ===');
@@ -98,28 +145,34 @@ export const companyService = {
 
 	async addCompany(
 		token: string,
-		companyData: {
-			name: string;
-			description?: string;
-			address?: string;
-			phone?: string;
-			email?: string;
-			webSite?: string;
-			logo?: string;
-			cityID?: number;
-			countryID?: number;
-			latitude?: number;
-			longitude?: number;
-		}
+		companyData: CreateCompanyPayload
 	): Promise<void> {
 		console.log('=== AddCompany API Call ===');
 		console.log('Token:', token ? `${token.substring(0, 20)}...` : 'null');
 		console.log('Company data:', JSON.stringify(companyData, null, 2));
-		console.log('Using endpoint:', `${LOCATION_API_URL}/companies/`);
+		console.log('Using endpoint:', `${LOCATION_API_URL}/company`);
 		console.log('================================');
 
 		try {
-			const response = await axiosInstance.post(`${LOCATION_API_URL}/companies/`, companyData, {
+			const payload = {
+				Company: {
+					Name: companyData.name,
+					Description: companyData.description ?? '',
+					Address: companyData.address ?? '',
+					Phone: companyData.phone ?? '',
+					Email: companyData.email ?? '',
+					WebSite: companyData.webSite ?? '',
+					Logo: companyData.logo ?? '',
+					CountryID: companyData.countryID ?? 1,
+					CompanyID: companyData.companyID ?? 0,
+					TerminalID: companyData.terminalID ?? 0,
+					CityID: companyData.cityID ?? 1,
+					Latitude: companyData.latitude ?? 0,
+					Longitude: companyData.longitude ?? 0,
+				},
+			};
+
+			const response = await axiosInstance.post(`${LOCATION_API_URL}/company`, payload, {
 				headers: {
 					'Authorization': `Bearer ${token}`,
 					'Content-Type': 'application/json',
@@ -147,30 +200,36 @@ export const companyService = {
 
 	async updateCompany(
 		token: string,
-		companyId: number,
-		companyData: {
-			name: string;
-			description?: string;
-			address?: string;
-			phone?: string;
-			email?: string;
-			webSite?: string;
-			logo?: string;
-			cityID?: number;
-			countryID?: number;
-			latitude?: number;
-			longitude?: number;
-		}
+		companyData: UpdateCompanyPayload
 	): Promise<void> {
 		console.log('=== UpdateCompany API Call ===');
 		console.log('Token:', token ? `${token.substring(0, 20)}...` : 'null');
-		console.log('CompanyId:', companyId);
+		console.log('CompanyId:', companyData.id);
 		console.log('Company data:', JSON.stringify(companyData, null, 2));
-		console.log('Using endpoint:', `${LOCATION_API_URL}/companies/${companyId}`);
+		console.log('Using endpoint:', `${LOCATION_API_URL}/update/company`);
 		console.log('================================');
 
 		try {
-			const response = await axiosInstance.put(`${LOCATION_API_URL}/companies/${companyId}`, companyData, {
+			const payload = {
+				Company: {
+					Id: companyData.id,
+					Name: companyData.name,
+					Description: companyData.description ?? '',
+					Address: companyData.address ?? '',
+					Phone: companyData.phone ?? '',
+					Email: companyData.email ?? '',
+					WebSite: companyData.webSite ?? '',
+					Logo: companyData.logo ?? '',
+					CountryID: companyData.countryID ?? 1,
+					CompanyID: companyData.companyID ?? companyData.id,
+					TerminalID: companyData.terminalID ?? 0,
+					CityID: companyData.cityID ?? 1,
+					Latitude: companyData.latitude ?? 0,
+					Longitude: companyData.longitude ?? 0,
+				},
+			};
+
+			const response = await axiosInstance.post(`${LOCATION_API_URL}/update/company`, payload, {
 				headers: {
 					'Authorization': `Bearer ${token}`,
 					'Content-Type': 'application/json',
