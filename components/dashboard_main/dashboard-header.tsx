@@ -128,7 +128,7 @@ export function DashboardHeader({
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="start" className="w-64">
 						{/* Wallet Balance */}
-						<div className="px-2 py-3 border-b border-gray-200">
+						{/* <div className="px-2 py-3 border-b border-gray-200">
 							<div className="flex items-center justify-between gap-2 text-right">
 								<div className="flex-1">
 									<p className="text-xs text-gray-500 font-IranYekanRegular mb-1">موجودی کیف پول</p>
@@ -146,7 +146,7 @@ export function DashboardHeader({
 									<Wallet className="h-5 w-5 text-[#0d5990]" />
 								</div>
 							</div>
-						</div>
+						</div> */}
 
 						<DropdownMenuItem className="flex items-center gap-2 cursor-pointer flex-row-reverse">
 							<span className="font-IranYekanRegular flex-1 text-right">تنظیمات</span>
